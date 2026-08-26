@@ -1,3 +1,4 @@
+mod actions;
 mod catalog;
 mod exec;
 mod fatal;
@@ -55,9 +56,8 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
     let herdr = herdr::HerdrClient::from_env();
 
     let header = protocol_header(&catalog, &herdr);
-    let rows = rows::catalog_rows(&catalog);
-    // M3 appends the plugin action rows here (additively: their failure must
-    // never take the catalog half down).
+    let mut rows = rows::catalog_rows(&catalog);
+    rows.extend(actions::plugin_rows(&herdr));
 
     let picked = ui.pick(&PickScreen {
         header,
@@ -69,8 +69,13 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
         PickOutcome::Cancelled => return Ok(ExitCode::SUCCESS),
     };
 
-    // M3 dispatches `plugin:`-prefixed rows here, before any catalog
-    // machinery: a plugin action takes no arguments from us.
+    // A plugin row dispatches straight to herdr's plugin runner. None of the
+    // catalog machinery below (arguments, confirmation, argv assembly)
+    // applies to it: a plugin action takes no arguments from us.
+    if let Some(qid) = selected_id.strip_prefix("plugin:") {
+        actions::run_plugin_action(qid, &herdr)?;
+        return Ok(ExitCode::SUCCESS);
+    }
 
     let entry = catalog
         .commands

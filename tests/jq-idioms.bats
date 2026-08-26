@@ -29,8 +29,10 @@ setup() {
 @test "no tracked file searches for a control character with jq contains" {
   cd "$ROOT" || return 1
 
-  # -I skips docs/assets/demo.gif and any binary added later.
-  hits=$(git ls-files | grep -v "^$SELF\$" \
+  # -I skips docs/assets/demo.gif and any binary added later. Rust sources
+  # are excluded: str::contains('\0') is not jq's contains — the binary
+  # never embeds a jq filter, jq being gone from its runtime path entirely.
+  hits=$(git ls-files | grep -v "^$SELF\$" | grep -v '\.rs$' \
     | xargs grep -I -nE "$CONTROL_CHAR_CONTAINS" || true)
   printf '%s' "$hits" >&2
 

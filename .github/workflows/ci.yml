@@ -97,9 +97,10 @@ jobs:
   # tab. ubuntu-latest ships jq 1.7.x, where the bug is gone; Debian bookworm
   # — and this project's development machine — ship jq 1.6. So the jq-using
   # tests run a second time against the version the bug lives in. The Rust
-  # rewrite is shrinking this scope: tests/palette.bats now drives the jq-free
-  # binary and is excluded (no Rust build here); the remaining files still
-  # exercise jq through palette.sh, check-compat.sh, and the schema tooling.
+  # rewrite is shrinking this scope: palette.bats, input-select.bats, and
+  # plugin-actions.bats now drive the jq-free binary and are excluded (no
+  # Rust build here); the remaining files still exercise jq through
+  # palette.sh, check-compat.sh, and the schema tooling.
   bats-jq16:
     runs-on: ubuntu-latest
     steps:
@@ -144,5 +145,5 @@ jobs:
 
       - name: bats (jq-dependent files only)
         run: |
-          bats tests/plugin-actions.bats tests/fzf-options.bats \
-            tests/check-compat.bats tests/schema.bats tests/jq-idioms.bats
+          bats tests/fzf-options.bats tests/check-compat.bats \
+            tests/schema.bats tests/jq-idioms.bats
