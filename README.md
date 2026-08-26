@@ -117,6 +117,13 @@ command = "vjeantet.palette.open"
 description = "Command palette"
 ```
 
+Prefer an editor-style single chord (no prefix)? Drop the `prefix+` part: herdr treats the
+chord as a direct binding, intercepted before it reaches the pane. `key = "ctrl+shift+p"`
+works if your terminal speaks the kitty keyboard protocol (herdr requests it on startup);
+on terminals that don't, that chord is indistinguishable from `ctrl+p` and the binding never
+fires — use `key = "ctrl+alt+p"` instead, the one modifier family that survives every
+terminal.
+
 One key is the whole point; if you also run either of the palettes credited above, give it a
 different key or uninstall it, since all three expose an action called `open`.
 
