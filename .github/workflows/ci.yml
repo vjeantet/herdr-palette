@@ -1,0 +1,121 @@
+name: CI
+
+# Runs on every push and pull request: static checks, catalog schema
+# validation, workflow linting, and the unit-test suite. This is separate
+# from compat-check.yml, which installs the latest herdr release and checks
+# real-world compatibility on a weekly schedule — see
+# docs/design/command-catalog.md, "Verification".
+on:
+  push: {}
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout@v7.0.1, pinned to its release commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Install shellcheck and bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck bats
+
+      - name: Install check-jsonschema
+        run: pipx install check-jsonschema
+
+      - name: Install actionlint
+        run: |
+          # actionlint's own download-actionlint.bash does NOT verify a
+          # checksum (checked 2026-08-16: it curls the release tarball and
+          # extracts it, nothing more) — so this downloads the release
+          # tarball and its published checksums.txt directly and verifies
+          # with sha256sum -c instead of using that script.
+          version=1.7.12
+          asset="actionlint_${version}_linux_amd64.tar.gz"
+          base_url="https://github.com/rhysd/actionlint/releases/download/v${version}"
+          curl -fsSLO "$base_url/$asset"
+          curl -fsSLO "$base_url/actionlint_${version}_checksums.txt"
+          grep -F -- "$asset" "actionlint_${version}_checksums.txt" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar xzf "$asset" -C "$RUNNER_TEMP/bin" actionlint
+          rm -f "$asset" "actionlint_${version}_checksums.txt"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: bash -n
+        run: |
+          bash -n open.sh
+          bash -n palette.sh
+          bash -n scripts/check-compat.sh
+          bash -n tests/stubs/herdr
+
+      - name: shellcheck
+        run: shellcheck open.sh palette.sh scripts/check-compat.sh tests/stubs/herdr
+
+      - name: actionlint
+        run: actionlint .github/workflows/ci.yml .github/workflows/compat-check.yml
+
+      - name: Validate the schema itself
+        run: check-jsonschema --check-metaschema commands.schema.json
+
+      - name: Validate commands.json against the schema
+        run: check-jsonschema --schemafile commands.schema.json commands.json
+
+      - name: bats
+        run: bats tests/
+
+  # The costliest bug this project has had never showed up in CI: under
+  # jq 1.6, `contains(NEEDLE)` is true for every string when NEEDLE starts
+  # with a NUL byte, which made the palette reject every workspace and every
+  # tab. ubuntu-latest ships jq 1.7.x, where the bug is gone; Debian bookworm
+  # — and this project's development machine — ship jq 1.6. So the suite runs
+  # a second time against the version the bug lives in.
+  bats-jq16:
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout@v7.0.1, pinned to its release commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Install bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bats
+
+      # schema.bats shells out to check-jsonschema.
+      - name: Install check-jsonschema
+        run: pipx install check-jsonschema
+
+      - name: Install jq 1.6
+        run: |
+          # Same shape as the actionlint step above — download, then verify a
+          # SHA-256 before trusting the binary — with one forced difference:
+          # the jq-1.6 release publishes no checksums file of its own (checked
+          # 2026-08-26 against the releases API: its only assets are the two
+          # source archives and five prebuilt binaries), so the digest is
+          # pinned here instead of fetched alongside the asset.
+          asset="jq-linux64"
+          url="https://github.com/jqlang/jq/releases/download/jq-1.6/$asset"
+          sha256="af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44"
+          curl -fsSLO "$url"
+          printf '%s  %s\n' "$sha256" "$asset" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          install -m 0755 "$asset" "$RUNNER_TEMP/bin/jq"
+          rm -f "$asset"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      # Without this the job silently degrades into a duplicate of the one
+      # above the first time the PATH ordering changes.
+      - name: Confirm jq 1.6 is the jq on PATH
+        run: |
+          jq --version
+          test "$(jq --version)" = "jq-1.6"
+
+      - name: bats
+        run: bats tests/

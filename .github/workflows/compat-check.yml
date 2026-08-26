@@ -1,0 +1,76 @@
+name: herdr compatibility check
+
+# Runs scripts/check-compat.sh against the latest herdr release, so a herdr
+# CLI change that breaks commands.json is caught even when nobody is
+# actively working on this repo. See docs/design/command-catalog.md,
+# section "Compatibility checks".
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # weekly, Monday 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-compat:
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout@v7.0.1, pinned to its release commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Install herdr
+        # Left unpinned intentionally: testing compatibility against
+        # whatever herdr currently ships as its latest release IS the point
+        # of this weekly job, unlike check-jsonschema below.
+        run: |
+          curl -fsSL https://herdr.dev/install.sh | sh
+          # install.sh's default install dir; see $HOME/.local/bin in the
+          # script (overridable via HERDR_INSTALL_DIR, not set here).
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install check-jsonschema
+        # Pinned to the version validated locally (0.38.0) so a
+        # check-jsonschema release change can't itself flip this job red.
+        run: pipx install check-jsonschema==0.38.0
+
+      - name: Run compatibility check
+        id: check
+        run: |
+          set -o pipefail
+          if bash scripts/check-compat.sh 2>&1 | tee result.txt; then
+            echo "exit_code=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "exit_code=1" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Open or update issue on failure
+        # always(): the previous step intentionally fails (exit 1) so the
+        # run shows red; without always() here, this step's implicit
+        # success() check would skip it whenever that happens.
+        if: always() && steps.check.outputs.exit_code == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          title_search="herdr compatibility check failed"
+          existing=$(gh issue list \
+            --repo "${{ github.repository }}" \
+            --state open \
+            --search "$title_search in:title" \
+            --json number \
+            --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" \
+              --repo "${{ github.repository }}" \
+              --body-file result.txt
+          else
+            gh issue create \
+              --repo "${{ github.repository }}" \
+              --title "$title_search ($(date -u +%Y-%m-%d))" \
+              --body-file result.txt
+          fi
