@@ -1,6 +1,9 @@
-# Development tools for this plugin. Runtime requirements (fzf, jq, herdr)
-# are the user's responsibility and are documented in the README.
+# Development tools for this plugin. Runtime requirements (herdr; a Rust
+# toolchain to build the binary) are the user's responsibility and are
+# documented in the README. jq remains a development requirement
+# (scripts/check-compat.sh, tests fixtures) but is gone from the runtime.
 [tools]
+rust = "stable"
 shellcheck = "latest"
 # check-jsonschema validates commands.json against commands.schema.json
 # (see scripts/check-compat.sh).

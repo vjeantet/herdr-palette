@@ -1,7 +1,7 @@
 # herdr-palette (vjeantet.palette)
 
-An fzf command palette for herdr that lists **both** halves of what a herdr session can do,
-in a single picker behind a single key:
+A command palette for herdr that lists **both** halves of what a herdr session can do,
+in a single Sublime-Text-style picker behind a single key:
 
 - herdr's own built-in operations — Workspace, Tab, Pane, Agent, Config;
 - every action exposed by every other installed plugin.
@@ -20,9 +20,10 @@ in a single picker behind a single key:
 
 ## Usage
 
-Press `prefix+p`. The palette opens as a popup over your current pane, listing every built-in
-command below *and* every action of every other installed plugin. Fuzzy-search or
-arrow-select the one you want and hit enter.
+Press `prefix+p`. The palette opens as a popup over your current pane: what you type stays on
+the top line, the fuzzy-filtered results follow underneath with the matched characters
+highlighted, listing every built-in command *and* every action of every other installed
+plugin. Fuzzy-search or arrow-select the one you want and hit enter.
 
 - Some commands ask for more input before running:
   - **Free input** (e.g. renaming a tab, a workspace directory) — type a value and press
@@ -51,8 +52,8 @@ target something else by design (e.g. `Workspace: Switch…`, `Agent: Focus…`)
 
 Below the built-in commands, the picker lists every action of every *other* installed plugin,
 one row each, shown as `Plugin: <title>  <plugin_id>.<action_id>`. The qualified id sits in the
-displayed field on purpose: fzf matches on what it displays, so typing a plugin's name finds
-its actions. Picking one dispatches it through `herdr plugin action invoke` and waits for the
+displayed field on purpose: the picker matches on what it displays, so typing a plugin's name
+finds its actions. Picking one dispatches it through `herdr plugin action invoke` and waits for the
 run to finish, so an action that fails shows its error instead of vanishing with the popup.
 
 Two rows are never offered: this palette's own actions, and actions declared for a platform
@@ -68,7 +69,7 @@ The two palettes this one draws on are designed to sit side by side on two keys,
 have to: jt.command-palette runs its picker in an **overlay** pane, and an overlay is a real pane
 in the workspace's layout tree, so while it is up it *is* the focused pane. Any built-in
 operation dispatched from there would resolve its target — pane to close, tab to rename — to the
-palette itself rather than to the pane you were working in. jt's own `open.sh` documents this and
+palette itself rather than to the pane you were working in. jt's own open action documents this and
 works around the cwd half of it by forwarding `--cwd`.
 
 This palette does not have the problem, because it uses **popup** placement. A popup lives
@@ -77,8 +78,8 @@ outside the layout tree (`state.popup_pane` in herdr), so it never becomes the f
 `focused_pane_id`, which still points at your working pane. That is what makes one key enough —
 built-in commands and plugin actions both act on where you actually were.
 
-On top of that, `open.sh` captures the origin pane, tab, workspace and cwd server-side, before
-the popup opens, and forwards them as `ORIGIN_*`.
+On top of that, the `open` action captures the origin pane, tab, workspace and cwd
+server-side, before the popup opens, and forwards them as `ORIGIN_*`.
 
 ### Not covered
 
@@ -88,20 +89,21 @@ for which built-in keybindings have no equivalent here, and why.
 
 ## Requirements
 
-This plugin does not install any system tools for you. You need to have the following in
-place beforehand:
-
-- [fzf](https://github.com/junegunn/fzf)
-- [jq](https://github.com/jqlang/jq)
 - herdr 0.8.0 or later
+- a [Rust toolchain](https://rustup.rs) to build the palette binary (build-time only; the
+  built plugin has no runtime dependency beyond herdr itself)
 
 ## Installation
 
-This plugin is not published; link a working copy:
+This plugin is not published; build the binary, then link a working copy:
 
 ```bash
-herdr plugin link /path/to/herdr-palette
+cd /path/to/herdr-palette
+cargo build --release
+herdr plugin link .
 ```
+
+The plugin manifest points at `target/release/herdr-palette`; rebuild after pulling changes.
 
 ## Keybinding
 
@@ -120,8 +122,9 @@ different key or uninstall it, since all three expose an action called `open`.
 
 ## How it works
 
-- **action `open`** runs on the herdr server side (no TTY) and opens the palette as a popup
-  pane, which does have a TTY. The popup is session-modal and sized independently of your
+- Both halves live in one Rust binary: **action `open`** (`herdr-palette open`) runs on the
+  herdr server side (no TTY) and opens the palette as a popup pane, which does have a TTY and
+  runs the picker (`herdr-palette ui`). The popup is session-modal and sized independently of your
   tiled layout, and doesn't show up in your pane list.
 - If your herdr version is below the plugin's minimum, herdr won't load the plugin at all. If
   the herdr you're running has drifted from the protocol version this catalog was built
@@ -134,8 +137,8 @@ different key or uninstall it, since all three expose an action called `open`.
 
 JanTvrdík's [jt.command-palette](https://github.com/JanTvrdik/herdr-command-palette) is a
 palette for plugin actions, not herdr's own built-in operations (tab close, pane split, and so
-on). The two plugins don't overlap and can be used side by side: `prefix+p` opens
-jt.command-palette, `prefix+shift+p` opens this one.
+on). This palette lists those plugin actions itself, so running both is redundant — one key is
+the whole point.
 
 This plugin's popup plumbing and error-visibility pattern are adapted from
 jt.command-palette (MIT); the source is credited in [LICENSE](LICENSE) and in source comments.

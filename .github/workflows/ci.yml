@@ -49,13 +49,11 @@ jobs:
 
       - name: bash -n
         run: |
-          bash -n open.sh
-          bash -n palette.sh
           bash -n scripts/check-compat.sh
           bash -n tests/stubs/herdr
 
       - name: shellcheck
-        run: shellcheck open.sh palette.sh scripts/check-compat.sh tests/stubs/herdr
+        run: shellcheck scripts/check-compat.sh tests/stubs/herdr
 
       - name: actionlint
         run: actionlint .github/workflows/ci.yml .github/workflows/compat-check.yml
@@ -97,10 +95,9 @@ jobs:
   # tab. ubuntu-latest ships jq 1.7.x, where the bug is gone; Debian bookworm
   # — and this project's development machine — ship jq 1.6. So the jq-using
   # tests run a second time against the version the bug lives in. The Rust
-  # rewrite is shrinking this scope: palette.bats, input-select.bats, and
-  # plugin-actions.bats now drive the jq-free binary and are excluded (no
-  # Rust build here); the remaining files still exercise jq through
-  # palette.sh, check-compat.sh, and the schema tooling.
+  # rewrite shrank this scope: the palette itself is jq-free now, so only the
+  # files exercising jq through check-compat.sh and the schema tooling run
+  # here (the binary-driven test files need no jq and no Rust build).
   bats-jq16:
     runs-on: ubuntu-latest
     steps:
@@ -145,5 +142,4 @@ jobs:
 
       - name: bats (jq-dependent files only)
         run: |
-          bats tests/fzf-options.bats tests/check-compat.bats \
-            tests/schema.bats tests/jq-idioms.bats
+          bats tests/check-compat.bats tests/schema.bats tests/jq-idioms.bats

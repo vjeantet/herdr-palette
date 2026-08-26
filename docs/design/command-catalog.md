@@ -1,8 +1,16 @@
 # Herdr Command Palette JSON Catalog Design
 
+> **Implementation note (2026-08-26).** The palette was rewritten from bash+fzf+jq into a
+> single Rust binary (`herdr-palette`, subcommands `open` and `ui`) with a Sublime-Text-style
+> picker. Every contract this document defines — the catalog format, argument sources,
+> resolution order, defensive behaviors, silent-cancel paths — is preserved by the rewrite.
+> Where the prose below describes fzf mechanics (exit statuses, `--with-nth`, query behavior),
+> read it as the behavioral specification the binary reproduces, not as the current mechanism.
+
 ## Background
 
-This document designs a command palette that runs herdr's built-in operations from fzf.
+This document designs a command palette that runs herdr's built-in operations from a popup
+picker.
 
 The original plan wrote the command list and argument-resolution logic directly into a `case`
 statement in `palette.sh`. Under that design, changing a display name or an argument would
@@ -58,15 +66,16 @@ This design's implementation uses the following files:
 - `commands.json`: defines commands, display information, argument sources, confirmation
   text, and the expected herdr API protocol.
 - `commands.schema.json`: declares the catalog's validation conditions as JSON Schema.
-- `palette.sh`: handles fzf selection, argument resolution, and running the herdr CLI.
-- `open.sh`: captures the origin Pane, Tab, Workspace, and working directory before the
-  popup takes focus, and passes them through environment variables.
+- `src/` (the `herdr-palette` binary): the `ui` subcommand handles the picker, argument
+  resolution, and running the herdr CLI; the `open` subcommand captures the origin Pane,
+  Tab, Workspace, and working directory before the popup takes focus, and passes them
+  through environment variables.
 - `scripts/check-compat.sh`: validates the catalog schema, compares the API protocol, and
   checks that the herdr subcommands referenced in the catalog are available.
 - `README.md`: documents, for users, the available commands, requirements, installation, and
   what is out of scope.
 
-`commands.json` lives at the same plugin root as `palette.sh`. `palette.sh` reads
+`commands.json` lives at the plugin root. The palette reads
 `$HERDR_PLUGIN_ROOT/commands.json`. There is no fallback that searches for a different file
 when the environment variable is absent.
 
@@ -633,10 +642,9 @@ instead of opening a duplicate.
 
 Static verification runs:
 
-- `bash -n open.sh`
-- `bash -n palette.sh`
+- `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`
 - `bash -n scripts/check-compat.sh`
-- `shellcheck open.sh palette.sh scripts/check-compat.sh`
+- `shellcheck scripts/check-compat.sh`
 - `uvx check-jsonschema --schemafile commands.schema.json commands.json`
 - `scripts/check-compat.sh`
 - `bats tests/`: schema-validation tests (the real catalog and a set of deliberately invalid
