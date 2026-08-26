@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "workspace.switch.broken",
+      "title": "Workspace: Switch (broken)",
+      "description": "Missing the select argument that supplies <workspace_id>.",
+      "command": ["workspace", "focus"],
+      "arguments": []
+    }
+  ]
+}

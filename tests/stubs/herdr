@@ -1,0 +1,627 @@
+#!/usr/bin/env bash
+# herdr — a fake herdr CLI used only by tests/check-compat.bats, driven via
+# HERDR_BIN_PATH. It reproduces the exact output shapes of the real herdr
+# 0.8.0 CLI (`--version`, `api schema`, and `<group> <sub> -h` for every
+# subcommand referenced by commands.json) so scripts/check-compat.sh can be
+# exercised without a real herdr install. Text below was copied verbatim
+# from real herdr 0.8.0 output, captured 2026-08-16.
+#
+# herdr's actual "-h" fallback behavior (measured against real herdr 0.8.0,
+# 2026-08-16) has two distinct shapes, both reproduced below:
+#   - an unrecognized subcommand within a KNOWN group (e.g. "pane teleport")
+#     prints that group's own command list ("herdr pane commands: ...") and
+#     exits 2.
+#   - a wholly unrecognized group (e.g. "frobnicate teleport") falls back to
+#     the top-level help and exits 0.
+# scripts/check-compat.sh guards against both: a nonzero exit fails outright,
+# and a zero exit is further required to contain a genuine
+# "Usage: herdr <group> <sub>" line (which neither fallback shape prints).
+#
+# Env vars:
+#   HERDR_STUB_PROTOCOL  — protocol number `api schema` reports (default 20)
+#   HERDR_STUB_VERSION   — version string `--version` reports (default 0.8.0)
+#   HERDR_STUB_CALLS     — optional file receiving runtime calls, one per line
+#   HERDR_STUB_*_LIST_JSON — JSON returned by runtime workspace/tab list calls
+#   HERDR_STUB_LIST_STATUS — nonzero status for runtime list calls
+#   HERDR_STUB_TAB_LIST_WITHOUT_WORKSPACE — omit --workspace from tab list help
+set -uo pipefail
+
+protocol="${HERDR_STUB_PROTOCOL:-20}"
+version="${HERDR_STUB_VERSION:-0.8.0}"
+
+record_call() {
+  if [ -n "${HERDR_STUB_CALLS:-}" ]; then
+    printf '%s\n' "$*" >>"$HERDR_STUB_CALLS"
+  fi
+}
+
+top_level_help() {
+  cat <<'EOF'
+herdr — terminal workspace manager for AI coding agents
+
+Usage: herdr [options]
+       herdr --session <name> [options]
+       herdr --remote <ssh-target> [--session <name>]
+       herdr session attach <name>
+       herdr completion zsh
+       herdr update [--handoff]
+       herdr channel set <stable|preview>
+       herdr server stop
+       herdr server reload-config
+       herdr api <subcommand> ...
+       herdr completion <shell>
+       herdr config <subcommand> ...
+       herdr channel <subcommand> ...
+       herdr workspace <subcommand> ...
+       herdr worktree <subcommand> ...
+       herdr tab <subcommand> ...
+       herdr notification <subcommand> ...
+       herdr agent <subcommand> ...
+       herdr pane <subcommand> ...
+       herdr session <subcommand> ...
+       herdr integration <subcommand> ...
+
+Common commands:
+  herdr                            Launch or attach to the persistent session
+  herdr status [server|client]     Show local client and running server status
+  herdr update                     Download and install the latest version
+  herdr completion zsh             Generate shell completions for zsh
+  herdr server stop                Stop the running server via the API socket
+  herdr channel set <stable|preview> Choose the stable or preview update channel
+  herdr server reload-config       Reload config.toml in the running server
+  herdr config reset-keys          Back up config.toml and remove custom keybindings
+  herdr channel <subcommand>       Manage the stable or preview update channel
+  herdr api <subcommand>           Inspect socket API metadata and live runtime state
+  herdr workspace <subcommand>     Workspace helpers over the socket API
+  herdr worktree <subcommand>      Git worktree helpers over the socket API
+  herdr tab <subcommand>           Tab helpers over the socket API
+  herdr notification <subcommand>  Notification helpers over the socket API
+  herdr agent <subcommand>         Agent/terminal helpers over the socket API
+  herdr pane <subcommand>          Pane control helpers over the socket API
+  herdr session <subcommand>       Manage named persistent sessions
+  herdr integration <subcommand>   Manage built-in agent integrations
+
+Advanced commands:
+  herdr server                     Run as headless server
+
+Options:
+  --no-session        Run monolithically (no server/client, escape hatch)
+  --session <name>    Use or create a named persistent session
+  --remote <target>   Attach through SSH to a remote Herdr server
+  --remote-keybindings <local|server>
+                      Keybindings for --remote app attach (default: local)
+  --handoff           Opt into live handoff for update or remote attach
+  --default-config    Print default configuration and exit
+  --skill             Print the agent skill file and exit
+  --version, -V       Print version and exit
+  --help, -h          Show this help
+
+Config: ~/.config/herdr/config.toml
+Logs:   ~/.config/herdr/herdr.log (plus herdr-client.log, herdr-server.log)
+Env:    HERDR_CONFIG_PATH overrides config file path
+Home:   https://herdr.dev
+Skill:  herdr --skill prints agent instructions for driving herdr from a pane
+EOF
+}
+
+# group_help GROUP — prints that group's own command list, the shape real
+# herdr 0.8.0 prints (with exit 2) for an unrecognized subcommand within a
+# known group. Only the groups commands.json and this test suite actually
+# reference (workspace, tab, pane, agent, server) have verbatim-captured
+# text; is_known_group() below is scoped to exactly those.
+group_help() {
+  case "$1" in
+    workspace)
+      cat <<'EOF'
+herdr workspace commands:
+  herdr workspace list
+  herdr workspace create [--cwd PATH] [--label TEXT] [--env KEY=VALUE] [--focus] [--no-focus]
+  herdr workspace get <workspace_id>
+  herdr workspace focus <workspace_id>
+  herdr workspace rename <workspace_id> <label>
+  herdr workspace report-metadata <workspace_id> --source ID [--token NAME=VALUE] [--clear-token NAME] [--seq N] [--ttl-ms N]
+  herdr workspace close <workspace_id>
+EOF
+      ;;
+    tab)
+      cat <<'EOF'
+herdr tab commands:
+  herdr tab list [--workspace <workspace_id>]
+  herdr tab create [--workspace <workspace_id>] [--cwd PATH] [--label TEXT] [--env KEY=VALUE] [--focus] [--no-focus]
+  herdr tab get <tab_id>
+  herdr tab focus <tab_id>
+  herdr tab rename <tab_id> <label>
+  herdr tab close <tab_id>
+EOF
+      ;;
+    pane)
+      cat <<'EOF'
+herdr pane commands:
+  herdr pane list [--workspace <workspace_id>]
+  herdr pane current [--pane ID|--current]
+  herdr pane get <pane_id>
+  herdr pane layout [--pane ID|--current]
+  herdr pane process-info [--pane ID|--current]
+  herdr pane neighbor --direction left|right|up|down [--pane ID|--current]
+  herdr pane edges [--pane ID|--current]
+  herdr pane focus --direction left|right|up|down [--pane ID|--current]
+  herdr pane resize --direction left|right|up|down [--amount FLOAT] [--pane ID|--current]
+  herdr pane zoom [<pane_id>|--pane ID|--current] [--toggle|--on|--off]
+  herdr pane rename <pane_id> <label>|--clear
+  herdr pane read <pane_id> [--source visible|recent|recent-unwrapped] [--lines N] [--format text|ansi] [--ansi]
+  herdr pane split [<pane_id>|--pane ID|--current] --direction right|down [--ratio FLOAT] [--cwd PATH] [--env KEY=VALUE] [--focus] [--no-focus]
+  herdr pane swap --direction left|right|up|down [--pane ID|--current]
+  herdr pane swap --source-pane ID --target-pane ID
+  herdr pane move <pane_id> --tab <tab_id> --split right|down [--target-pane ID] [--ratio FLOAT] [--focus|--no-focus]
+  herdr pane move <pane_id> --new-tab [--workspace ID] [--label TEXT] [--focus|--no-focus]
+  herdr pane move <pane_id> --new-workspace [--label TEXT] [--tab-label TEXT] [--focus|--no-focus]
+  herdr pane close <pane_id>
+  herdr pane send-text <pane_id> <text>
+  herdr pane send-keys <pane_id> <key> [key ...]
+  herdr pane wait-output <pane_id> (--match TEXT | --regex PATTERN) [--source visible|recent|recent-unwrapped] [--lines N] [--timeout MS] [--raw]
+  herdr pane report-agent <pane_id> --source ID --agent LABEL --state idle|working|blocked|unknown [--message TEXT] [--seq N] [--agent-session-id ID] [--agent-session-path PATH]
+  herdr pane report-agent-session <pane_id> --source ID --agent LABEL [--seq N] [--agent-session-id ID] [--agent-session-path PATH]
+  herdr pane release-agent <pane_id> --source ID --agent LABEL [--seq N]
+  herdr pane report-metadata <pane_id> --source ID [--agent LABEL] [--applies-to-source ID] [--title TEXT|--clear-title] [--display-agent TEXT|--clear-display-agent] [--state-label STATUS=TEXT] [--clear-state-labels] [--token NAME=VALUE] [--clear-token NAME] [--seq N] [--ttl-ms N]
+  herdr pane run <pane_id> <command>
+EOF
+      ;;
+    agent)
+      cat <<'EOF'
+herdr agent commands:
+  herdr agent list
+  herdr agent get <target>
+  herdr agent read <target> [--source visible|recent|recent-unwrapped|detection] [--lines N] [--format text|ansi] [--ansi]
+  herdr agent send-keys <target> <key> [key ...]
+  herdr agent prompt <target> <text> [--wait] [--until STATUS]... [--timeout MS]
+  herdr agent rename <target> <name>|--clear
+  herdr agent focus <target>
+  herdr agent wait <target> [--until STATUS]... [--timeout MS]
+  herdr agent attach <target> [--takeover]
+  herdr agent start <name> --kind KIND --pane ID [--timeout MS] [-- <agent-args...>]
+  herdr agent explain <target> [--json|--format text|json] [--verbose]
+  herdr agent explain --file PATH --agent LABEL [--json|--format text|json] [--verbose]
+  targets accept unique agent names and pane ids that currently host agents
+  kinds: pi|claude|codex|gemini|cursor|devin|agy|cline|omp|mastracode|opencode|copilot|kimi|kiro|droid|amp|grok|hermes|kilo|qodercli|maki
+EOF
+      ;;
+    server)
+      cat <<'EOF'
+herdr server commands:
+  herdr server                run as headless server
+  herdr server stop           stop the running server via the API socket
+  herdr server live-handoff   hand off live panes to a new local server
+  herdr server reload-config  reload config.toml in the running server
+  herdr server agent-manifests [--json]  show agent detection manifest status
+  herdr server update-agent-manifests [--json]  fetch and reload agent detection manifests
+  herdr server reload-agent-manifests  reload agent detection manifests in the running server
+EOF
+      ;;
+  esac
+}
+
+# is_known_group GROUP — true for exactly the groups this stub has real
+# group_help() text for, i.e. the groups commands.json and this test suite
+# reference. herdr itself recognizes more groups (api, config, channel,
+# worktree, notification, session, integration, completion); they're not
+# reproduced here because nothing in this repo exercises them.
+is_known_group() {
+  case "$1" in
+    workspace|tab|pane|agent|server) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+if [ "${1:-}" = "--version" ]; then
+  echo "herdr $version"
+  exit 0
+fi
+
+if [ "${1:-}" = "api" ] && [ "${2:-}" = "schema" ]; then
+  cat <<EOF
+Herdr API schema
+protocol: $protocol
+schema_version: 1
+schemas: error_response, event, request, subscription_event, success_response
+EOF
+  exit 0
+fi
+
+# Runtime behavior used by palette.bats. Help calls continue into the case
+# statement below so compatibility tests still receive the captured CLI help.
+if [ "${1:-} ${2:-}" = "workspace list" ] && [ "$#" -eq 2 ]; then
+  record_call "$@"
+  if [ "${HERDR_STUB_LIST_STATUS:-0}" -ne 0 ]; then
+    printf '%s\n' "${HERDR_STUB_LIST_ERROR:-workspace list error}" >&2
+    exit "$HERDR_STUB_LIST_STATUS"
+  fi
+  workspace_list_json="${HERDR_STUB_WORKSPACE_LIST_JSON:-}"
+  [ -n "$workspace_list_json" ] || workspace_list_json='{"result":{"workspaces":[]}}'
+  printf '%s\n' "$workspace_list_json"
+  exit 0
+fi
+
+if [ "${1:-} ${2:-}" = "tab list" ] && [ "${3:-}" = "--workspace" ] && [ "$#" -eq 4 ]; then
+  record_call "$@"
+  if [ "${HERDR_STUB_LIST_STATUS:-0}" -ne 0 ]; then
+    printf '%s\n' "${HERDR_STUB_LIST_ERROR:-tab list error}" >&2
+    exit "$HERDR_STUB_LIST_STATUS"
+  fi
+  tab_list_json="${HERDR_STUB_TAB_LIST_JSON:-}"
+  [ -n "$tab_list_json" ] || tab_list_json='{"result":{"tabs":[]}}'
+  printf '%s\n' "$tab_list_json"
+  exit 0
+fi
+
+if { [ "${1:-} ${2:-}" = "workspace focus" ] || [ "${1:-} ${2:-}" = "tab focus" ]; } \
+  && [ "${3:-}" != "-h" ]; then
+  record_call "$@"
+  printf '%s\n' '{"result":{}}'
+  exit 0
+fi
+
+# Plugin-action surface used by palette.bats. Same shape as the real herdr
+# 0.8.0 CLI: one JSON line on stdout, and `plugin action invoke` returning as
+# soon as the run is DISPATCHED (its outcome is read back from the log).
+if [ "${1:-} ${2:-} ${3:-}" = "plugin action list" ] && [ "$#" -eq 3 ]; then
+  # Deliberately NOT recorded: the palette queries this on every run, before
+  # anything the caller asked for. Recording it would push every existing
+  # ordering assertion ("the first call is tab list ...") off by one.
+  if [ "${HERDR_STUB_ACTION_LIST_STATUS:-0}" -ne 0 ]; then
+    printf '%s\n' "${HERDR_STUB_ACTION_LIST_ERROR:-plugin action list error}" >&2
+    exit "$HERDR_STUB_ACTION_LIST_STATUS"
+  fi
+  action_list_json="${HERDR_STUB_ACTION_LIST_JSON:-}"
+  [ -n "$action_list_json" ] || action_list_json='{"result":{"actions":[]}}'
+  printf '%s\n' "$action_list_json"
+  exit 0
+fi
+
+if [ "${1:-} ${2:-} ${3:-}" = "plugin action invoke" ] && [ "$#" -eq 4 ]; then
+  record_call "$@"
+  if [ "${HERDR_STUB_INVOKE_STATUS:-0}" -ne 0 ]; then
+    printf '%s\n' "${HERDR_STUB_INVOKE_ERROR:-invoke error}" >&2
+    exit "$HERDR_STUB_INVOKE_STATUS"
+  fi
+  invoke_json="${HERDR_STUB_INVOKE_JSON:-}"
+  [ -n "$invoke_json" ] || invoke_json='{"result":{"log":{"log_id":"plugin-log-1","plugin_id":"stub.plugin","status":"running"}}}'
+  printf '%s\n' "$invoke_json"
+  exit 0
+fi
+
+if [ "${1:-} ${2:-} ${3:-}" = "plugin log list" ]; then
+  record_call "$@"
+  log_json="${HERDR_STUB_PLUGIN_LOG_JSON:-}"
+  [ -n "$log_json" ] || log_json='{"result":{"logs":[{"log_id":"plugin-log-1","plugin_id":"stub.plugin","status":"succeeded","exit_code":0}]}}'
+  printf '%s\n' "$log_json"
+  exit 0
+fi
+
+pair="${1:-} ${2:-}"
+case "$pair" in
+  "workspace focus")
+    cat <<'EOF'
+Focus a workspace
+
+Usage: herdr workspace focus <workspace_id>
+
+Arguments:
+  <workspace_id>
+EOF
+    exit 0
+    ;;
+  "workspace create")
+    cat <<'EOF'
+Create a workspace
+
+Usage: herdr workspace create [OPTIONS]
+
+Options:
+      --cwd <PATH>
+
+      --label <TEXT>
+
+      --env <KEY=VALUE>
+          Set an environment variable for the launched process
+
+      --focus
+
+      --no-focus
+EOF
+    exit 0
+    ;;
+  "workspace rename")
+    cat <<'EOF'
+Rename a workspace
+
+Usage: herdr workspace rename <WORKSPACE_ID> <LABEL>...
+
+Arguments:
+  <WORKSPACE_ID>
+
+  <LABEL>...
+EOF
+    exit 0
+    ;;
+  "workspace close")
+    cat <<'EOF'
+Close a workspace
+
+Usage: herdr workspace close <workspace_id>
+
+Arguments:
+  <workspace_id>
+EOF
+    exit 0
+    ;;
+  "workspace list")
+    cat <<'EOF'
+List workspaces
+
+Usage: herdr workspace list
+EOF
+    exit 0
+    ;;
+  "tab focus")
+    cat <<'EOF'
+Focus a tab
+
+Usage: herdr tab focus <tab_id>
+
+Arguments:
+  <tab_id>
+EOF
+    exit 0
+    ;;
+  "tab create")
+    cat <<'EOF'
+Create a tab
+
+Usage: herdr tab create [OPTIONS]
+
+Options:
+      --workspace <WORKSPACE_ID>
+
+      --cwd <PATH>
+
+      --label <TEXT>
+
+      --env <KEY=VALUE>
+          Set an environment variable for the launched process
+
+      --focus
+
+      --no-focus
+EOF
+    exit 0
+    ;;
+  "tab rename")
+    cat <<'EOF'
+Rename a tab
+
+Usage: herdr tab rename <TAB_ID> <LABEL>...
+
+Arguments:
+  <TAB_ID>
+
+  <LABEL>...
+EOF
+    exit 0
+    ;;
+  "tab close")
+    cat <<'EOF'
+Close a tab
+
+Usage: herdr tab close <tab_id>
+
+Arguments:
+  <tab_id>
+EOF
+    exit 0
+    ;;
+  "tab list")
+    if [ "${HERDR_STUB_TAB_LIST_WITHOUT_WORKSPACE:-0}" -eq 1 ]; then
+      cat <<'EOF'
+List tabs
+
+Usage: herdr tab list
+EOF
+    else
+      cat <<'EOF'
+List tabs
+
+Usage: herdr tab list [OPTIONS]
+
+Options:
+      --workspace <WORKSPACE_ID>
+EOF
+    fi
+    exit 0
+    ;;
+  "pane rename")
+    cat <<'EOF'
+Rename a pane
+
+Usage: herdr pane rename [OPTIONS] <PANE_ID> [LABEL]...
+
+Arguments:
+  <PANE_ID>
+
+  [LABEL]...
+
+Options:
+      --clear
+EOF
+    exit 0
+    ;;
+  "pane close")
+    cat <<'EOF'
+Close a pane
+
+Usage: herdr pane close <pane_id>
+
+Arguments:
+  <pane_id>
+EOF
+    exit 0
+    ;;
+  "pane zoom")
+    cat <<'EOF'
+Toggle or set pane zoom
+
+Usage: herdr pane zoom [OPTIONS] [PANE_ID]
+
+Arguments:
+  [PANE_ID]
+
+Options:
+      --pane <ID>
+
+      --current
+
+      --toggle
+
+      --on
+
+      --off
+EOF
+    exit 0
+    ;;
+  "pane focus")
+    cat <<'EOF'
+Focus a neighboring pane
+
+Usage: herdr pane focus [OPTIONS] --direction <DIRECTION>
+
+Options:
+      --direction <DIRECTION>
+          [possible values: left, right, up, down]
+
+      --pane <ID>
+
+      --current
+EOF
+    exit 0
+    ;;
+  "pane split")
+    cat <<'EOF'
+Split a pane
+
+Usage: herdr pane split [OPTIONS] [PANE_ID]
+
+Arguments:
+  [PANE_ID]
+
+Options:
+      --pane <ID>
+
+      --current
+
+      --direction <DIRECTION>
+          [possible values: right, down]
+
+      --ratio <FLOAT>
+
+      --cwd <PATH>
+
+      --env <KEY=VALUE>
+          Set an environment variable for the launched process
+
+      --focus
+
+      --no-focus
+EOF
+    exit 0
+    ;;
+  "pane swap")
+    cat <<'EOF'
+Swap panes
+
+Usage: herdr pane swap [OPTIONS]
+
+Options:
+      --direction <DIRECTION>
+          [possible values: left, right, up, down]
+
+      --pane <ID>
+
+      --current
+
+      --source-pane <ID>
+
+      --target-pane <ID>
+EOF
+    exit 0
+    ;;
+  "pane resize")
+    cat <<'EOF'
+Resize a pane split
+
+Usage: herdr pane resize [OPTIONS] --direction <DIRECTION>
+
+Options:
+      --direction <DIRECTION>
+          [possible values: left, right, up, down]
+
+      --amount <FLOAT>
+
+      --pane <ID>
+
+      --current
+EOF
+    exit 0
+    ;;
+  "pane substr-flag-test")
+    # Synthetic — not a real herdr subcommand. Exists only so
+    # check-compat.bats can exercise the "a literal flag must exactly match
+    # a declared option, not just appear as a substring of one" FAIL path
+    # (e.g. commands.json says "--focus" but the subcommand only declares
+    # "--focused"), which no real subcommand in this catalog happens to
+    # trigger.
+    cat <<'EOF'
+Synthetic subcommand for check-compat.bats (not a real herdr subcommand)
+
+Usage: herdr pane substr-flag-test [OPTIONS]
+
+Options:
+      --focused
+EOF
+    exit 0
+    ;;
+  "agent focus")
+    cat <<'EOF'
+Focus an agent
+
+Usage: herdr agent focus <target>
+
+Arguments:
+  <target>
+EOF
+    exit 0
+    ;;
+  "agent list")
+    cat <<'EOF'
+List agents
+
+Usage: herdr agent list
+EOF
+    exit 0
+    ;;
+  "server reload-config")
+    cat <<'EOF'
+Reload config in the running server
+
+Usage: herdr server reload-config
+EOF
+    exit 0
+    ;;
+  *)
+    group="${1:-}"
+    if [ -n "$group" ] && is_known_group "$group"; then
+      group_help "$group"
+      exit 2
+    fi
+    top_level_help
+    exit 0
+    ;;
+esac

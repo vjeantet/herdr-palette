@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "pane.split.broken",
+      "title": "Pane: Split (broken)",
+      "description": "--pane's value is missing; --direction is consumed as it instead.",
+      "command": ["pane", "split"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "right" }
+      ]
+    }
+  ]
+}

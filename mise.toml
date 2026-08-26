@@ -1,0 +1,11 @@
+# Development tools for this plugin. Runtime requirements (fzf, jq, herdr)
+# are the user's responsibility and are documented in the README.
+[tools]
+shellcheck = "latest"
+# check-jsonschema validates commands.json against commands.schema.json
+# (see scripts/check-compat.sh).
+uv = "latest"
+# Runs the tests/ suite (see tests/schema.bats, tests/check-compat.bats).
+bats = "latest"
+# Lints .github/workflows/*.yml; matches what CI runs (.github/workflows/ci.yml).
+actionlint = "latest"

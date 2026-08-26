@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "frobnicate.teleport",
+      "title": "Frobnicate: Teleport",
+      "description": "Not a real herdr group at all; the stub falls back to top-level help with exit 0 for it.",
+      "command": ["frobnicate", "teleport"],
+      "arguments": []
+    }
+  ]
+}

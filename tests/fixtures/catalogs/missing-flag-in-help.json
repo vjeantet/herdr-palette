@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "pane.zoom.bogus",
+      "title": "Pane: Zoom with bogus flag",
+      "description": "pane zoom -h does not mention --nonexistent-flag.",
+      "command": ["pane", "zoom"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--nonexistent-flag" }
+      ]
+    }
+  ]
+}

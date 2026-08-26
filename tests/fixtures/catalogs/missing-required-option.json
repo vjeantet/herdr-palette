@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "pane.focus.broken",
+      "title": "Pane: Focus broken",
+      "description": "Missing the required --direction option; regression test for the required-option check.",
+      "command": ["pane", "focus"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" }
+      ]
+    }
+  ]
+}

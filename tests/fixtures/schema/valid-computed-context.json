@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "workspace.next",
+      "title": "Workspace: Next",
+      "description": "Focus the next workspace.",
+      "command": ["workspace", "focus"],
+      "arguments": [{ "source": "context", "key": "next_workspace_id" }]
+    },
+    {
+      "id": "workspace.previous",
+      "title": "Workspace: Previous",
+      "description": "Focus the previous workspace.",
+      "command": ["workspace", "focus"],
+      "arguments": [{ "source": "context", "key": "previous_workspace_id" }]
+    },
+    {
+      "id": "tab.next",
+      "title": "Tab: Next",
+      "description": "Focus the next tab.",
+      "command": ["tab", "focus"],
+      "arguments": [{ "source": "context", "key": "next_tab_id" }]
+    },
+    {
+      "id": "tab.previous",
+      "title": "Tab: Previous",
+      "description": "Focus the previous tab.",
+      "command": ["tab", "focus"],
+      "arguments": [{ "source": "context", "key": "previous_tab_id" }]
+    }
+  ]
+}

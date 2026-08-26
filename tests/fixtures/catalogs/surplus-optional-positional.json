@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "pane.zoom.surplus",
+      "title": "Pane: Zoom surplus (broken)",
+      "description": "Supplies two positionals to pane zoom, which accepts at most one optional PANE_ID (not variadic); regression test distinguishing [NAME] from [NAME]....",
+      "command": ["pane", "zoom"],
+      "arguments": [
+        {
+          "source": "input",
+          "prompt": "a ▸ ",
+          "required": true
+        },
+        {
+          "source": "input",
+          "prompt": "b ▸ ",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

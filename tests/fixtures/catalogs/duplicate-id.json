@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "dup.id",
+      "title": "Workspace: List A",
+      "description": "First copy.",
+      "command": ["workspace", "list"],
+      "arguments": []
+    },
+    {
+      "id": "dup.id",
+      "title": "Workspace: List B",
+      "description": "Second copy with the same id.",
+      "command": ["workspace", "list"],
+      "arguments": []
+    }
+  ]
+}

@@ -1,0 +1,374 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "workspace.switch",
+      "title": "Workspace: Switch…",
+      "description": "Focus another workspace.",
+      "command": ["workspace", "focus"],
+      "arguments": [
+        {
+          "source": "select",
+          "selector": "workspaces",
+          "prompt": "workspace ▸ ",
+          "exclude_context": "workspace_id"
+        }
+      ]
+    },
+    {
+      "id": "workspace.next",
+      "title": "Workspace: Next",
+      "description": "Focus the next workspace, wrapping after the last.",
+      "command": ["workspace", "focus"],
+      "arguments": [
+        { "source": "context", "key": "next_workspace_id" }
+      ]
+    },
+    {
+      "id": "workspace.previous",
+      "title": "Workspace: Previous",
+      "description": "Focus the previous workspace, wrapping before the first.",
+      "command": ["workspace", "focus"],
+      "arguments": [
+        { "source": "context", "key": "previous_workspace_id" }
+      ]
+    },
+    {
+      "id": "workspace.new",
+      "title": "Workspace: New…",
+      "description": "Create and focus a workspace in the selected directory.",
+      "command": ["workspace", "create"],
+      "arguments": [
+        { "source": "literal", "value": "--cwd" },
+        {
+          "source": "input",
+          "prompt": "workspace directory ▸ ",
+          "description": "Enter an existing directory for the new workspace.",
+          "required": true,
+          "default_context": "cwd",
+          "validation": "directory"
+        },
+        { "source": "literal", "value": "--focus" }
+      ]
+    },
+    {
+      "id": "workspace.rename",
+      "title": "Workspace: Rename current",
+      "description": "Enter a new label for the workspace that opened the palette.",
+      "command": ["workspace", "rename"],
+      "arguments": [
+        { "source": "context", "key": "workspace_id" },
+        {
+          "source": "input",
+          "prompt": "new workspace label ▸ ",
+          "description": "Enter a new label for the current workspace.",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "workspace.close",
+      "title": "Workspace: Close current",
+      "description": "Close the workspace that opened the palette.",
+      "command": ["workspace", "close"],
+      "arguments": [
+        { "source": "context", "key": "workspace_id" }
+      ],
+      "confirm": "Close the current workspace?"
+    },
+    {
+      "id": "tab.switch",
+      "title": "Tab: Switch…",
+      "description": "Focus another tab.",
+      "command": ["tab", "focus"],
+      "arguments": [
+        {
+          "source": "select",
+          "selector": "tabs",
+          "prompt": "tab ▸ ",
+          "exclude_context": "tab_id"
+        }
+      ]
+    },
+    {
+      "id": "tab.next",
+      "title": "Tab: Next",
+      "description": "Focus the next tab in the current workspace, wrapping after the last.",
+      "command": ["tab", "focus"],
+      "arguments": [
+        { "source": "context", "key": "next_tab_id" }
+      ]
+    },
+    {
+      "id": "tab.previous",
+      "title": "Tab: Previous",
+      "description": "Focus the previous tab in the current workspace, wrapping before the first.",
+      "command": ["tab", "focus"],
+      "arguments": [
+        { "source": "context", "key": "previous_tab_id" }
+      ]
+    },
+    {
+      "id": "tab.new",
+      "title": "Tab: New",
+      "description": "Create and focus a tab in the workspace that opened the palette.",
+      "command": ["tab", "create"],
+      "arguments": [
+        { "source": "literal", "value": "--workspace" },
+        { "source": "context", "key": "workspace_id" },
+        { "source": "literal", "value": "--focus" }
+      ]
+    },
+    {
+      "id": "tab.rename",
+      "title": "Tab: Rename current",
+      "description": "Enter a new label for the tab that opened the palette.",
+      "command": ["tab", "rename"],
+      "arguments": [
+        { "source": "context", "key": "tab_id" },
+        {
+          "source": "input",
+          "prompt": "new tab label ▸ ",
+          "description": "Enter a new label for the current tab.",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "tab.close",
+      "title": "Tab: Close current",
+      "description": "Close the tab that opened the palette.",
+      "command": ["tab", "close"],
+      "arguments": [
+        { "source": "context", "key": "tab_id" }
+      ],
+      "confirm": "Close the current tab?"
+    },
+    {
+      "id": "pane.rename",
+      "title": "Pane: Rename current",
+      "description": "Enter a new label for the pane that opened the palette.",
+      "command": ["pane", "rename"],
+      "arguments": [
+        { "source": "context", "key": "pane_id" },
+        {
+          "source": "input",
+          "prompt": "new pane label ▸ ",
+          "description": "Enter a new label for the current pane.",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "pane.close",
+      "title": "Pane: Close current",
+      "description": "Close the pane that opened the palette.",
+      "command": ["pane", "close"],
+      "arguments": [
+        { "source": "context", "key": "pane_id" }
+      ],
+      "confirm": "Close the current pane?"
+    },
+    {
+      "id": "pane.zoom.toggle",
+      "title": "Pane: Toggle zoom",
+      "description": "Toggle zoom for the pane that opened the palette.",
+      "command": ["pane", "zoom"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--toggle" }
+      ]
+    },
+    {
+      "id": "pane.focus.left",
+      "title": "Pane: Focus left",
+      "description": "Focus the neighbor to the left of the pane that opened the palette.",
+      "command": ["pane", "focus"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "left" }
+      ]
+    },
+    {
+      "id": "pane.focus.right",
+      "title": "Pane: Focus right",
+      "description": "Focus the neighbor to the right of the pane that opened the palette.",
+      "command": ["pane", "focus"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "right" }
+      ]
+    },
+    {
+      "id": "pane.focus.up",
+      "title": "Pane: Focus up",
+      "description": "Focus the neighbor above the pane that opened the palette.",
+      "command": ["pane", "focus"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "up" }
+      ]
+    },
+    {
+      "id": "pane.focus.down",
+      "title": "Pane: Focus down",
+      "description": "Focus the neighbor below the pane that opened the palette.",
+      "command": ["pane", "focus"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "down" }
+      ]
+    },
+    {
+      "id": "pane.split.right",
+      "title": "Pane: Split right",
+      "description": "Split the pane that opened the palette, placing the new pane to the right.",
+      "command": ["pane", "split"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "right" }
+      ]
+    },
+    {
+      "id": "pane.split.down",
+      "title": "Pane: Split down",
+      "description": "Split the pane that opened the palette, placing the new pane below.",
+      "command": ["pane", "split"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "down" }
+      ]
+    },
+    {
+      "id": "pane.swap.left",
+      "title": "Pane: Swap left",
+      "description": "Swap the current pane with its left neighbor.",
+      "command": ["pane", "swap"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "left" }
+      ]
+    },
+    {
+      "id": "pane.swap.right",
+      "title": "Pane: Swap right",
+      "description": "Swap the current pane with its right neighbor.",
+      "command": ["pane", "swap"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "right" }
+      ]
+    },
+    {
+      "id": "pane.swap.up",
+      "title": "Pane: Swap up",
+      "description": "Swap the current pane with its upper neighbor.",
+      "command": ["pane", "swap"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "up" }
+      ]
+    },
+    {
+      "id": "pane.swap.down",
+      "title": "Pane: Swap down",
+      "description": "Swap the current pane with its lower neighbor.",
+      "command": ["pane", "swap"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "down" }
+      ]
+    },
+    {
+      "id": "pane.resize.left",
+      "title": "Pane: Resize left",
+      "description": "Resize the split to the left of the pane that opened the palette by the default amount.",
+      "command": ["pane", "resize"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "left" }
+      ]
+    },
+    {
+      "id": "pane.resize.right",
+      "title": "Pane: Resize right",
+      "description": "Resize the split to the right of the pane that opened the palette by the default amount.",
+      "command": ["pane", "resize"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "right" }
+      ]
+    },
+    {
+      "id": "pane.resize.up",
+      "title": "Pane: Resize up",
+      "description": "Resize the split above the pane that opened the palette by the default amount.",
+      "command": ["pane", "resize"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "up" }
+      ]
+    },
+    {
+      "id": "pane.resize.down",
+      "title": "Pane: Resize down",
+      "description": "Resize the split below the pane that opened the palette by the default amount.",
+      "command": ["pane", "resize"],
+      "arguments": [
+        { "source": "literal", "value": "--pane" },
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--direction" },
+        { "source": "literal", "value": "down" }
+      ]
+    },
+    {
+      "id": "agent.focus",
+      "title": "Agent: Focus…",
+      "description": "Focus another agent pane.",
+      "command": ["agent", "focus"],
+      "arguments": [
+        {
+          "source": "select",
+          "selector": "agents",
+          "prompt": "agent ▸ ",
+          "exclude_context": "pane_id"
+        }
+      ]
+    },
+    {
+      "id": "config.reload",
+      "title": "Config: Reload",
+      "description": "Reload the herdr server configuration.",
+      "command": ["server", "reload-config"],
+      "arguments": []
+    }
+  ]
+}

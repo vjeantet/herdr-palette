@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "workspace.close.broken",
+      "title": "Workspace: Close (broken)",
+      "description": "Supplies tab_id where herdr expects <workspace_id>.",
+      "command": ["workspace", "close"],
+      "arguments": [
+        { "source": "context", "key": "tab_id" }
+      ]
+    }
+  ]
+}

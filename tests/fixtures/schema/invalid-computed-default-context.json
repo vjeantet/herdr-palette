@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "invalid.computed.default",
+      "title": "Invalid computed default",
+      "description": "Computed context must not initialize input.",
+      "command": ["tab", "rename"],
+      "arguments": [
+        { "source": "context", "key": "tab_id" },
+        {
+          "source": "input",
+          "prompt": "label > ",
+          "required": true,
+          "default_context": "next_tab_id"
+        }
+      ]
+    }
+  ]
+}

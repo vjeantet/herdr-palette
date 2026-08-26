@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vjeantet/herdr-palette/commands.schema.json",
+  "title": "Herdr command palette catalog",
+  "description": "Schema for commands.json. Does not check id uniqueness across commands; that is checked separately by scripts/check-compat.sh, since JSON Schema cannot express cross-item uniqueness on a derived key.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "expected_herdr_protocol", "commands"],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "expected_herdr_protocol": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/command" }
+    }
+  },
+  "$defs": {
+    "staticContextKey": {
+      "enum": ["pane_id", "tab_id", "workspace_id", "cwd"]
+    },
+    "argumentContextKey": {
+      "anyOf": [
+        { "$ref": "#/$defs/staticContextKey" },
+        {
+          "enum": [
+            "next_workspace_id",
+            "previous_workspace_id",
+            "next_tab_id",
+            "previous_tab_id"
+          ]
+        }
+      ]
+    },
+    "selector": {
+      "enum": ["workspaces", "tabs", "agents"]
+    },
+    "safeString": {
+      "type": "string",
+      "description": "A string that cannot break shell argv or fzf's tab-delimited candidate display: no NUL, no newline, no tab (verified empirically with check-jsonschema: a tab-containing value passed the previous, narrower pattern). The trailing negative lookahead in place of a bare '$' is deliberately stricter than needed for check-jsonschema's own regex engine (ECMA-262 via the regress library, whose '$' has no trailing-newline exception); it protects against a plain '^...$' silently accepting a trailing newline under engines that do have that exception, e.g. Python's re module.",
+      "pattern": "^[^\u0000\n\t]*(?![\\s\\S])"
+    },
+    "nonEmptySafeString": {
+      "type": "string",
+      "description": "A non-empty string that cannot break shell argv or fzf's tab-delimited candidate display: no NUL, no newline (including a trailing one), no tab.",
+      "minLength": 1,
+      "pattern": "^[^\u0000\n\t]*(?![\\s\\S])"
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "command", "arguments"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable catalog-unique id. Lowercase alphanumerics, '.', '-', '_' only.",
+          "pattern": "^[a-z0-9._-]+$"
+        },
+        "title": { "$ref": "#/$defs/nonEmptySafeString" },
+        "description": { "$ref": "#/$defs/nonEmptySafeString" },
+        "command": {
+          "type": "array",
+          "description": "[group, subcommand] passed directly after 'herdr'.",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          }
+        },
+        "arguments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/argument" }
+        },
+        "confirm": { "$ref": "#/$defs/nonEmptySafeString" }
+      }
+    },
+    "argument": {
+      "oneOf": [
+        { "$ref": "#/$defs/argumentLiteral" },
+        { "$ref": "#/$defs/argumentContext" },
+        { "$ref": "#/$defs/argumentInput" },
+        { "$ref": "#/$defs/argumentSelect" }
+      ]
+    },
+    "argumentLiteral": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "value"],
+      "properties": {
+        "source": { "const": "literal" },
+        "value": { "$ref": "#/$defs/safeString" }
+      }
+    },
+    "argumentContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key"],
+      "properties": {
+        "source": { "const": "context" },
+        "key": { "$ref": "#/$defs/argumentContextKey" }
+      }
+    },
+    "argumentInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "prompt", "required"],
+      "properties": {
+        "source": { "const": "input" },
+        "prompt": { "$ref": "#/$defs/nonEmptySafeString" },
+        "description": { "$ref": "#/$defs/safeString" },
+        "required": { "type": "boolean" },
+        "default_context": { "$ref": "#/$defs/staticContextKey" },
+        "validation": { "const": "directory" }
+      }
+    },
+    "argumentSelect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "selector", "prompt"],
+      "properties": {
+        "source": { "const": "select" },
+        "selector": { "$ref": "#/$defs/selector" },
+        "prompt": { "$ref": "#/$defs/nonEmptySafeString" },
+        "description": { "$ref": "#/$defs/safeString" },
+        "exclude_context": { "$ref": "#/$defs/staticContextKey" }
+      }
+    }
+  }
+}

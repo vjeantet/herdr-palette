@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "pane.teleport",
+      "title": "Pane: Teleport",
+      "description": "Not a real herdr subcommand; pane is a known group, so the stub returns pane's group help with exit 2.",
+      "command": ["pane", "teleport"],
+      "arguments": []
+    }
+  ]
+}

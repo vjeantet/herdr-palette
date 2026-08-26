@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "pane.substr-flag-test.broken",
+      "title": "Pane: Substring flag test (broken)",
+      "description": "Uses --focus, but the (synthetic) subcommand's help only declares --focused; regression test for the flag exact-match check.",
+      "command": ["pane", "substr-flag-test"],
+      "arguments": [
+        { "source": "literal", "value": "--focus" }
+      ]
+    }
+  ]
+}

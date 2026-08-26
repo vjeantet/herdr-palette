@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "expected_herdr_protocol": 20,
+  "commands": [
+    {
+      "id": "test.cmd",
+      "title": "Test: Command",
+      "description": "A test command.",
+      "command": ["workspace", "list"],
+      "arguments": [
+        { "source": "literal", "value": "--x", "unexpected_field": true }
+      ]
+    }
+  ]
+}
