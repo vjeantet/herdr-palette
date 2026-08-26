@@ -107,7 +107,10 @@ fn render_pick(
 ) {
     let area = frame.area();
     let width = area.width as usize;
-    let list_height = area.height.saturating_sub(2) as usize;
+    // The dim header line only exists when there is something to say (a
+    // warning, a screen description); otherwise its row goes to the list.
+    let header_lines: u16 = if screen.header.is_empty() { 1 } else { 2 };
+    let list_height = area.height.saturating_sub(header_lines) as usize;
 
     // Keep the selection visible.
     if selected < *offset {
@@ -125,10 +128,12 @@ fn render_pick(
         ),
         Span::raw(query.to_string()),
     ]));
-    lines.push(Line::from(Span::styled(
-        screen.header.clone(),
-        Style::default().add_modifier(Modifier::DIM),
-    )));
+    if !screen.header.is_empty() {
+        lines.push(Line::from(Span::styled(
+            screen.header.clone(),
+            Style::default().add_modifier(Modifier::DIM),
+        )));
+    }
 
     for (visible_index, entry) in filtered.iter().enumerate().skip(*offset).take(list_height) {
         let row = &screen.rows[entry.row];
@@ -227,19 +232,19 @@ impl Ui for TuiUi {
                 .draw(|frame| {
                     let area = frame.area();
                     let text: String = value.iter().collect();
-                    let lines = vec![
-                        Line::from(vec![
-                            Span::styled(
-                                screen.prompt.clone(),
-                                Style::default().add_modifier(Modifier::BOLD),
-                            ),
-                            Span::raw(text),
-                        ]),
-                        Line::from(Span::styled(
+                    let mut lines = vec![Line::from(vec![
+                        Span::styled(
+                            screen.prompt.clone(),
+                            Style::default().add_modifier(Modifier::BOLD),
+                        ),
+                        Span::raw(text),
+                    ])];
+                    if !screen.header.is_empty() {
+                        lines.push(Line::from(Span::styled(
                             screen.header.clone(),
                             Style::default().add_modifier(Modifier::DIM),
-                        )),
-                    ];
+                        )));
+                    }
                     frame.render_widget(Paragraph::new(Text::from(lines)), area);
                     let cursor_x = (screen.prompt.chars().count() + cursor)
                         .min((area.width as usize).saturating_sub(1));

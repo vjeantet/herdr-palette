@@ -115,7 +115,8 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
 }
 
 /// The picker header doubles as the protocol warning channel: neither an
-/// unreadable protocol nor a mismatch blocks execution.
+/// unreadable protocol nor a mismatch blocks execution. Empty means no
+/// warning — the TUI then drops the header line entirely.
 fn protocol_header(catalog: &catalog::Catalog, herdr: &herdr::HerdrClient) -> String {
     let expected = catalog
         .expected_herdr_protocol
@@ -129,6 +130,6 @@ fn protocol_header(catalog: &catalog::Catalog, herdr: &herdr::HerdrClient) -> St
         Some(actual) if actual != expected => {
             format!("warning: catalog expects herdr protocol {expected}, herdr reports {actual}")
         }
-        Some(_) => "herdr command palette".to_string(),
+        Some(_) => String::new(),
     }
 }
