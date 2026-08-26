@@ -66,6 +66,28 @@ jobs:
       - name: Validate commands.json against the schema
         run: check-jsonschema --schemafile commands.schema.json commands.json
 
+      # The palette binary. The runner image's preinstalled stable toolchain
+      # is used on purpose: no third-party action to pin, and the weekly
+      # image refresh doubles as a newer-stable compatibility check.
+      - name: Rust toolchain in use
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: cargo fmt --check
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        run: cargo test
+
+      # tests/palette.bats drives this binary (headless mode), so the build
+      # must precede bats.
+      - name: cargo build --release
+        run: cargo build --release
+
       - name: bats
         run: bats tests/
 
@@ -73,8 +95,11 @@ jobs:
   # jq 1.6, `contains(NEEDLE)` is true for every string when NEEDLE starts
   # with a NUL byte, which made the palette reject every workspace and every
   # tab. ubuntu-latest ships jq 1.7.x, where the bug is gone; Debian bookworm
-  # — and this project's development machine — ship jq 1.6. So the suite runs
-  # a second time against the version the bug lives in.
+  # — and this project's development machine — ship jq 1.6. So the jq-using
+  # tests run a second time against the version the bug lives in. The Rust
+  # rewrite is shrinking this scope: tests/palette.bats now drives the jq-free
+  # binary and is excluded (no Rust build here); the remaining files still
+  # exercise jq through palette.sh, check-compat.sh, and the schema tooling.
   bats-jq16:
     runs-on: ubuntu-latest
     steps:
@@ -117,5 +142,7 @@ jobs:
           jq --version
           test "$(jq --version)" = "jq-1.6"
 
-      - name: bats
-        run: bats tests/
+      - name: bats (jq-dependent files only)
+        run: |
+          bats tests/plugin-actions.bats tests/fzf-options.bats \
+            tests/check-compat.bats tests/schema.bats tests/jq-idioms.bats

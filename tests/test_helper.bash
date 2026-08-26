@@ -31,3 +31,10 @@ setup_fixture_repo() {
 herdr_stub() {
   printf '%s/tests/stubs/herdr' "$(repo_root)"
 }
+
+# palette_bin — absolute path to the Rust palette binary under test. Built by
+# `cargo build --release` (CI does this before running bats); override with
+# PALETTE_BIN to test another build.
+palette_bin() {
+  printf '%s' "${PALETTE_BIN:-$(repo_root)/target/release/herdr-palette}"
+}
