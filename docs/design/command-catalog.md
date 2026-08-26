@@ -18,7 +18,7 @@ require editing Bash, and the design could not separate command definitions from
 logic.
 
 This design instead declares the command list in a `commands.json` bundled with the plugin,
-and `palette.sh` reads the definitions and executes them. Schema validation of the
+and the palette reads the definitions and executes them. Schema validation of the
 definitions happens at development time and in CI, never at runtime. There is no feature for
 users to define arbitrary shell commands or jq filters. The JSON catalog is under Git and
 code review, and it is never merged with user settings.
@@ -92,10 +92,10 @@ The top level of `commands.json` has this shape:
 ```
 
 **`schema_version`**: the version of the JSON catalog format this plugin defines. The initial
-value is `1`; `palette.sh` and the compatibility check accept only `1`.
+value is `1`; the palette and the compatibility check accept only `1`.
 
 **`expected_herdr_protocol`**: the herdr socket API protocol this catalog assumes. The value
-confirmed on herdr 0.8.0 is `19`. `palette.sh` and the compatibility check both refer to this
+confirmed on herdr 0.8.0 is `19`. The palette and the compatibility check both refer to this
 single value.
 
 **`commands`**: an array of command definitions. The array order is fzf's initial display
@@ -161,7 +161,7 @@ argv element and is never reinterpreted by a shell.
 
 ### Origin context
 
-`context` refers to a value that `open.sh` captured before the popup opened.
+`context` refers to a value that the `open` action captured before the popup opened.
 
 ```json
 {
@@ -267,8 +267,8 @@ label from the workspace_id. A candidate whose workspace label cannot be resolve
 to displaying the raw `workspace_id`. A failure of this workspace list call is treated as an
 error, the same as a failure of any other list command.
 
-A selector's name and implementation are matched in `palette.sh`'s `case` statement. The JSON
-never contains a list command or a jq filter. This keeps editing the catalog alone from
+A selector's name and implementation are matched in the palette source (`src/resolve.rs`). The
+JSON never contains a list command or a filter. This keeps editing the catalog alone from
 becoming a channel for launching an arbitrary command.
 
 New selector kinds are added only when a new kind of list result is needed. Selectors not
@@ -467,12 +467,12 @@ The initial version does not cover the following operations.
 
 ## Execution flow
 
-`palette.sh` processes in the following order:
+The palette (`herdr-palette ui`) processes in the following order:
 
 1. Confirm `fzf` and `jq` are present.
 2. Confirm `ORIGIN_PANE_ID`, `ORIGIN_TAB_ID`, and `ORIGIN_WORKSPACE_ID` are present.
 3. Read `$HERDR_PLUGIN_ROOT/commands.json`. If it cannot be read as JSON, this is an error.
-   Schema validation is not performed at runtime, except that `palette.sh` also confirms
+   Schema validation is not performed at runtime, except that the palette also confirms
    `schema_version` is `1` and dies otherwise.
 4. Read the protocol from `herdr api schema` and compare it against
    `expected_herdr_protocol`.
@@ -498,12 +498,12 @@ It does not depend on `mapfile`, associative arrays, or other Bash-4-only featur
 Validation conditions are declared in `commands.schema.json` (JSON Schema draft 2020-12), and
 `scripts/check-compat.sh` validates against it with
 `uvx check-jsonschema --schemafile commands.schema.json commands.json`. Validation happens
-only at development time and in CI; `palette.sh` never performs schema validation at runtime.
+only at development time and in CI; the palette never performs schema validation at runtime.
 
 The reasons runtime validation is skipped are as follows. `commands.json` is bundled with the
 plugin, under Git, and subject to code review; there is no path for a user to edit it. The
 only path by which a broken catalog could reach a user is a release, and CI validation
-prevents that. `palette.sh` shows an error only when the file cannot be read as JSON, or when
+prevents that. The palette shows an error only when the file cannot be read as JSON, or when
 argument resolution encounters an unexpected value.
 
 Uniqueness of `id` cannot be expressed in JSON Schema, so it is checked with jq inside
@@ -569,9 +569,9 @@ The following states are a normal cancellation and exit with status 0:
   `expected_herdr_protocol`: both show a header warning and continue, they never block.
 
 A label from a `herdr ... list` result (e.g. a workspace, tab, or agent label) may contain
-control characters such as a newline or tab; since it's embedded into a tab-delimited candidate
-row for `fzf`, palette.sh strips those (replacing them with a space) before display so a
-crafted label can't forge extra rows or shift which field is treated as the id.
+control characters such as a newline or tab; the palette strips those (replacing them with a
+space) before display so a crafted label can't forge rows or mislead the picker — in the
+fzf era they could literally shift which tab-delimited field was treated as the id.
 
 When the herdr CLI fails, the group and subcommand that were run, along with herdr's own
 output, are shown. Every command runs synchronously and its failure is always shown this way.
@@ -746,9 +746,9 @@ UI-internal operations have no public request is based on `herdr --help` and the
 schema in `herdr api schema --json` having no equivalent operation.
 
 `herdr --skill` documents that a pane command run without an explicit target may fall back to
-the UI-focused pane, which can belong to the user or another client — the behavior `open.sh`
-relies on by capturing the origin pane/tab/workspace before the popup steals focus, rather
-than letting a command resolve its target implicitly.
+the UI-focused pane, which can belong to the user or another client — the behavior the `open`
+action relies on by capturing the origin pane/tab/workspace before the popup steals focus,
+rather than letting a command resolve its target implicitly.
 
 ### Why popup placement is load-bearing
 
