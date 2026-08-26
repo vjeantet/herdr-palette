@@ -20,7 +20,10 @@ command = ["target/release/herdr-palette", "open"]
 # HERDR_PANE_ID.
 # Launched via $HERDR_PLUGIN_ROOT rather than a relative path because `open`
 # changes --cwd to the origin pane's working directory (herdr does not expand
-# variables in manifest arrays, hence the one-line bash -c).
+# variables in manifest arrays, hence the one-line bash -c). That --cwd is
+# load-bearing: a RELATIVE path typed into a directory-validated input is
+# checked against this process's cwd and forwarded to herdr as typed, so both
+# must resolve from the origin pane's cwd. Do not "simplify" either away.
 [[panes]]
 id = "palette"
 title = "Command palette"
