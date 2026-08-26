@@ -18,7 +18,7 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::{Frame, Terminal};
 
-use super::{PickOutcome, PickScreen, Ui};
+use super::{InputOutcome, InputScreen, PickOutcome, PickScreen, Ui};
 use crate::fatal::Fatal;
 
 pub struct TuiUi {
@@ -211,6 +211,79 @@ impl Ui for TuiUi {
                 (KeyCode::Char(ch), false) => {
                     query.push(ch);
                     selected = 0;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn input(&mut self, screen: &InputScreen) -> Result<InputOutcome, Fatal> {
+        // A plain line editor in the picker's clothes: same top line, same
+        // dim header, no result list.
+        let mut value: Vec<char> = screen.initial.chars().collect();
+        let mut cursor = value.len();
+        loop {
+            self.terminal
+                .draw(|frame| {
+                    let area = frame.area();
+                    let text: String = value.iter().collect();
+                    let lines = vec![
+                        Line::from(vec![
+                            Span::styled(
+                                screen.prompt.clone(),
+                                Style::default().add_modifier(Modifier::BOLD),
+                            ),
+                            Span::raw(text),
+                        ]),
+                        Line::from(Span::styled(
+                            screen.header.clone(),
+                            Style::default().add_modifier(Modifier::DIM),
+                        )),
+                    ];
+                    frame.render_widget(Paragraph::new(Text::from(lines)), area);
+                    let cursor_x = (screen.prompt.chars().count() + cursor)
+                        .min((area.width as usize).saturating_sub(1));
+                    frame.set_cursor_position(Position::new(cursor_x as u16, area.y));
+                })
+                .map_err(term_err)?;
+            let Event::Key(key) = event::read().map_err(term_err)? else {
+                continue;
+            };
+            if key.kind != KeyEventKind::Press {
+                continue;
+            }
+            let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+            match (key.code, ctrl) {
+                (KeyCode::Esc, _) | (KeyCode::Char('c'), true) => {
+                    return Ok(InputOutcome::Cancelled)
+                }
+                (KeyCode::Enter, _) => return Ok(InputOutcome::Submitted(value.iter().collect())),
+                (KeyCode::Left, _) | (KeyCode::Char('b'), true) => {
+                    cursor = cursor.saturating_sub(1);
+                }
+                (KeyCode::Right, _) | (KeyCode::Char('f'), true) => {
+                    cursor = (cursor + 1).min(value.len());
+                }
+                (KeyCode::Home, _) | (KeyCode::Char('a'), true) => cursor = 0,
+                (KeyCode::End, _) | (KeyCode::Char('e'), true) => cursor = value.len(),
+                (KeyCode::Char('u'), true) => {
+                    value.clear();
+                    cursor = 0;
+                }
+                (KeyCode::Backspace, _) => {
+                    if cursor > 0 {
+                        cursor -= 1;
+                        value.remove(cursor);
+                    }
+                }
+                (KeyCode::Delete, _) => {
+                    if cursor < value.len() {
+                        value.remove(cursor);
+                    }
+                }
+                (KeyCode::Char(ch), false) => {
+                    value.insert(cursor, ch);
+                    cursor += 1;
                 }
                 _ => {}
             }

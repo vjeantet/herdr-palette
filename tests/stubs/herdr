@@ -21,7 +21,7 @@
 #   HERDR_STUB_PROTOCOL  — protocol number `api schema` reports (default 20)
 #   HERDR_STUB_VERSION   — version string `--version` reports (default 0.8.0)
 #   HERDR_STUB_CALLS     — optional file receiving runtime calls, one per line
-#   HERDR_STUB_*_LIST_JSON — JSON returned by runtime workspace/tab list calls
+#   HERDR_STUB_*_LIST_JSON — JSON returned by runtime workspace/tab/agent list calls
 #   HERDR_STUB_LIST_STATUS — nonzero status for runtime list calls
 #   HERDR_STUB_TAB_LIST_WITHOUT_WORKSPACE — omit --workspace from tab list help
 set -uo pipefail
@@ -241,6 +241,30 @@ if [ "${1:-} ${2:-}" = "workspace list" ] && [ "$#" -eq 2 ]; then
   exit 0
 fi
 
+if [ "${1:-} ${2:-}" = "tab list" ] && [ "$#" -eq 2 ]; then
+  record_call "$@"
+  if [ "${HERDR_STUB_LIST_STATUS:-0}" -ne 0 ]; then
+    printf '%s\n' "${HERDR_STUB_LIST_ERROR:-tab list error}" >&2
+    exit "$HERDR_STUB_LIST_STATUS"
+  fi
+  tab_list_json="${HERDR_STUB_TAB_LIST_JSON:-}"
+  [ -n "$tab_list_json" ] || tab_list_json='{"result":{"tabs":[]}}'
+  printf '%s\n' "$tab_list_json"
+  exit 0
+fi
+
+if [ "${1:-} ${2:-}" = "agent list" ] && [ "$#" -eq 2 ]; then
+  record_call "$@"
+  if [ "${HERDR_STUB_LIST_STATUS:-0}" -ne 0 ]; then
+    printf '%s\n' "${HERDR_STUB_LIST_ERROR:-agent list error}" >&2
+    exit "$HERDR_STUB_LIST_STATUS"
+  fi
+  agent_list_json="${HERDR_STUB_AGENT_LIST_JSON:-}"
+  [ -n "$agent_list_json" ] || agent_list_json='{"result":{"agents":[]}}'
+  printf '%s\n' "$agent_list_json"
+  exit 0
+fi
+
 if [ "${1:-} ${2:-}" = "tab list" ] && [ "${3:-}" = "--workspace" ] && [ "$#" -eq 4 ]; then
   record_call "$@"
   if [ "${HERDR_STUB_LIST_STATUS:-0}" -ne 0 ]; then
@@ -253,12 +277,15 @@ if [ "${1:-} ${2:-}" = "tab list" ] && [ "${3:-}" = "--workspace" ] && [ "$#" -e
   exit 0
 fi
 
-if { [ "${1:-} ${2:-}" = "workspace focus" ] || [ "${1:-} ${2:-}" = "tab focus" ]; } \
-  && [ "${3:-}" != "-h" ]; then
-  record_call "$@"
-  printf '%s\n' '{"result":{}}'
-  exit 0
-fi
+case "${1:-} ${2:-}" in
+  "workspace focus"|"tab focus"|"agent focus"|"workspace create"|"workspace rename"|"workspace close"|"tab rename"|"tab close"|"pane rename")
+    if [ "${3:-}" != "-h" ]; then
+      record_call "$@"
+      printf '%s\n' '{"result":{}}'
+      exit 0
+    fi
+    ;;
+esac
 
 # Plugin-action surface used by palette.bats. Same shape as the real herdr
 # 0.8.0 CLI: one JSON line on stdout, and `plugin action invoke` returning as

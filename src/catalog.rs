@@ -27,7 +27,6 @@ pub struct Catalog {
 pub struct CommandEntry {
     pub id: String,
     pub title: String,
-    #[allow(dead_code)] // consumed by the M2 input/select screens (fallback description)
     pub description: Option<String>,
     /// `[group, subcommand]` per the schema; length is re-checked at use.
     pub command: Vec<String>,
@@ -40,7 +39,6 @@ pub struct CommandEntry {
 
 /// One argument of a catalog command, a discriminated union on `source`.
 /// Each resolved argument becomes exactly one argv element.
-#[allow(dead_code)] // the Input/Select payloads are consumed by the M2 screens
 #[derive(Debug, Deserialize)]
 #[serde(tag = "source", rename_all = "lowercase")]
 pub enum ArgSpec {

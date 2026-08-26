@@ -13,23 +13,34 @@
 //!                             (plain `id` when the label is the id, as on
 //!                             the confirm screen) — byte-compatible with
 //!                             the old FZF_STUB_DUMP assertions.
+//!   PALETTE_STUB_INPUT      — what input screens return; unset → the
+//!                             screen's prefill (the fzf stub echoed
+//!                             --query back the same way).
+//!   PALETTE_STUB_INPUTS     — newline-separated input answers consumed one
+//!                             per input screen (takes precedence).
 
 use std::collections::VecDeque;
 use std::io::Write;
 
-use super::{PickOutcome, PickScreen, Ui};
+use super::{InputOutcome, InputScreen, PickOutcome, PickScreen, Ui};
 use crate::fatal::Fatal;
 
 pub struct HeadlessUi {
     select_queue: Option<VecDeque<String>>,
+    input_queue: Option<VecDeque<String>>,
 }
 
 impl HeadlessUi {
     pub fn new() -> Self {
-        let select_queue = std::env::var("PALETTE_STUB_SELECT_IDS")
-            .ok()
-            .map(|ids| ids.lines().map(str::to_string).collect());
-        HeadlessUi { select_queue }
+        let queue_from = |name: &str| {
+            std::env::var(name)
+                .ok()
+                .map(|values| values.lines().map(str::to_string).collect())
+        };
+        HeadlessUi {
+            select_queue: queue_from("PALETTE_STUB_SELECT_IDS"),
+            input_queue: queue_from("PALETTE_STUB_INPUTS"),
+        }
     }
 
     fn dump(&self, screen: &PickScreen) {
@@ -74,6 +85,16 @@ impl Ui for HeadlessUi {
                 None => PickOutcome::Cancelled,
             },
         })
+    }
+
+    fn input(&mut self, screen: &InputScreen) -> Result<InputOutcome, Fatal> {
+        let answer = match &mut self.input_queue {
+            Some(queue) => queue.pop_front(),
+            None => std::env::var("PALETTE_STUB_INPUT").ok(),
+        };
+        Ok(InputOutcome::Submitted(
+            answer.unwrap_or_else(|| screen.initial.clone()),
+        ))
     }
 
     fn fatal(&mut self, message: &str) -> ! {

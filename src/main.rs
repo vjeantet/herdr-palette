@@ -86,7 +86,10 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
         )));
     };
 
-    let args = resolve::resolve_args(entry, &origin, &herdr)?;
+    let args = match resolve::resolve_args(entry, &origin, &herdr, ui)? {
+        resolve::Resolution::Args(args) => args,
+        resolve::Resolution::Cancelled => return Ok(ExitCode::SUCCESS),
+    };
 
     // No is listed first so the cursor starts on it: a reflexive Enter
     // cancels instead of confirming. No and Esc are clean cancels.

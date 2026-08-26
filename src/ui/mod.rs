@@ -8,6 +8,7 @@ pub mod tui;
 
 use crate::fatal::Fatal;
 
+#[derive(Debug)]
 pub struct Row {
     /// Hidden key (field 1 of the old fzf lines): catalog id, `plugin:<qid>`,
     /// or the literal choice on the confirm screen.
@@ -40,8 +41,27 @@ pub enum PickOutcome {
     Cancelled,
 }
 
+/// A free-text line editor (the old `fzf --print-query` over an empty
+/// candidate list).
+pub struct InputScreen {
+    pub header: String,
+    pub prompt: String,
+    /// Prefill from `default_context`; the user edits or replaces it.
+    pub initial: String,
+}
+
+pub enum InputOutcome {
+    /// The line as submitted — possibly empty, which the caller interprets
+    /// (required → silent cancel; optional → an empty argv element).
+    Submitted(String),
+    /// Esc/Ctrl-C.
+    Cancelled,
+}
+
 pub trait Ui {
     fn pick(&mut self, screen: &PickScreen) -> Result<PickOutcome, Fatal>;
+
+    fn input(&mut self, screen: &InputScreen) -> Result<InputOutcome, Fatal>;
 
     /// The bash version's `die`: show `message`, keep the popup readable
     /// (the TUI waits for one keypress), then exit 1. Never returns.
