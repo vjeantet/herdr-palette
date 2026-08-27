@@ -14,8 +14,10 @@ contexts = ["workspace"]
 command = ["target/release/herdr-palette", "open"]
 
 # The interactive picker itself. Runs in popup placement, which has a TTY: a
-# session-modal pane sized independently of the tiled layout (defaults to
-# half-size; width/height are configurable here but currently left unset).
+# session-modal pane sized independently of the tiled layout. Without
+# width/height it defaults to half the terminal, which is huge on a large
+# window; cell counts below are effectively max-width/max-height, because
+# herdr clamps them to the terminal size when it is smaller.
 # It does not appear in `herdr pane list`, and its process does not receive
 # HERDR_PANE_ID.
 # Launched via $HERDR_PLUGIN_ROOT rather than a relative path because `open`
@@ -28,4 +30,6 @@ command = ["target/release/herdr-palette", "open"]
 id = "palette"
 title = "Command palette"
 placement = "popup"
+width = 80
+height = 24
 command = ["bash", "-c", "exec \"$HERDR_PLUGIN_ROOT/target/release/herdr-palette\" ui"]
