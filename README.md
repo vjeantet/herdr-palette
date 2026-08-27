@@ -95,7 +95,18 @@ for which built-in keybindings have no equivalent here, and why.
 
 ## Installation
 
-This plugin is not published; build the binary, then link a working copy:
+```bash
+herdr plugin install vjeantet/herdr-palette
+```
+
+This clones the repository and runs the manifest's build step (`cargo build --release`), so a
+Rust toolchain must be on `PATH`. While this repository is private, the clone additionally
+needs a GitHub account with access and a non-interactive git credential helper for
+`https://github.com` — `gh auth setup-git` after authenticating the [GitHub CLI](https://cli.github.com)
+is the simplest way to get one.
+
+To hack on the plugin instead, build the binary and link a working copy — same layout, but
+herdr runs your checkout directly:
 
 ```bash
 cd /path/to/herdr-palette
@@ -103,7 +114,8 @@ cargo build --release
 herdr plugin link .
 ```
 
-The plugin manifest points at `target/release/herdr-palette`; rebuild after pulling changes.
+The plugin manifest points at `target/release/herdr-palette`; when linked, rebuild after
+pulling changes (installs rebuild on their own).
 
 ## Keybinding
 

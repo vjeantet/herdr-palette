@@ -5,6 +5,12 @@ min_herdr_version = "0.8.0"
 description = "Command palette for herdr: built-in operations (tab/workspace/pane) AND every action of every installed plugin, in one Sublime-Text-style picker. Origin tab/pane ids are captured server-side before the popup takes focus and forwarded via --env."
 platforms = ["macos", "linux"]
 
+# Run by `herdr plugin install` after cloning: the manifest points at
+# target/release/herdr-palette, which a fresh checkout does not have.
+# Requires a Rust toolchain on the installing machine (build-time only).
+[[build]]
+command = ["cargo", "build", "--release"]
+
 # Entry point that runs server-side (no TTY), so it just opens the popup pane.
 # The action's cwd is the plugin root, so the relative path resolves.
 [[actions]]
