@@ -10,6 +10,8 @@ A Sublime-Text-style popup: what you type stays on the top line, fuzzy-filtered 
 underneath with the matched characters in bold. One Rust binary, no runtime dependency
 beyond herdr itself.
 
+![The palette: fuzzy-search the picker, run a built-in command, then one of your own](docs/assets/demo.gif)
+
 ## Install
 
 ```bash
