@@ -25,6 +25,7 @@
 #   HERDR_STUB_LIST_STATUS — nonzero status for runtime list calls
 #   HERDR_STUB_TAB_LIST_WITHOUT_WORKSPACE — omit --workspace from tab list help
 #   HERDR_STUB_DEFAULT_CONFIG — overrides the `--default-config` template ("" = flag unsupported)
+#   HERDR_STUB_PANE_OPEN_JSON / _STATUS / _ERROR — response of `plugin pane open`
 set -uo pipefail
 
 protocol="${HERDR_STUB_PROTOCOL:-20}"
@@ -390,6 +391,18 @@ if [ "${1:-} ${2:-} ${3:-}" = "plugin action invoke" ] && [ "$#" -eq 4 ]; then
   invoke_json="${HERDR_STUB_INVOKE_JSON:-}"
   [ -n "$invoke_json" ] || invoke_json='{"result":{"log":{"log_id":"plugin-log-1","plugin_id":"stub.plugin","status":"running"}}}'
   printf '%s\n' "$invoke_json"
+  exit 0
+fi
+
+if [ "${1:-} ${2:-} ${3:-}" = "plugin pane open" ]; then
+  record_call "$@"
+  if [ "${HERDR_STUB_PANE_OPEN_STATUS:-0}" -ne 0 ]; then
+    printf '%s\n' "${HERDR_STUB_PANE_OPEN_ERROR:-plugin pane open error}" >&2
+    exit "$HERDR_STUB_PANE_OPEN_STATUS"
+  fi
+  pane_open_json="${HERDR_STUB_PANE_OPEN_JSON:-}"
+  [ -n "$pane_open_json" ] || pane_open_json='{"result":{"plugin_pane":{"plugin_id":"vjeantet.palette","entrypoint":"runner","pane":{"pane_id":"w1:p9"}}}}'
+  printf '%s\n' "$pane_open_json"
   exit 0
 fi
 

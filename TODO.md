@@ -3,12 +3,15 @@
 Feature requests parked while the Rust rewrite is in progress. Each entry
 records the date it was requested.
 
-- **Custom commands** (2026-08-26): let the user declare their own palette
-  entries, beyond the built-in catalog (`commands.json`) and installed plugin
-  actions. Catalog loading is isolated in `src/catalog.rs`, so merging a
-  user-provided file later stays a local change.
-
 Done:
+
+- **Custom commands** (requested 2026-08-26, closed 2026-08-27): user-declared
+  palette entries, read from `$HERDR_PLUGIN_CONFIG_DIR/config.toml` and shown
+  ahead of the built-in catalog as `User: <title>`. Each entry names an `argv`
+  array, which runs in a pane of its own through this plugin's `runner`
+  entrypoint — never through a shell. Documented in the README's
+  [Your own commands](README.md#your-own-commands); the design document's
+  out-of-scope list carries the dated amendment.
 
 - **Single-keystroke trigger** (requested and closed 2026-08-26): herdr
   supports prefix-less direct bindings natively — dropping the `prefix+`

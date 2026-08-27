@@ -1,10 +1,11 @@
 # herdr-palette (vjeantet.palette)
 
-A command palette for herdr that lists **both** halves of what a herdr session can do,
-in a single Sublime-Text-style picker behind a single key:
+A command palette for herdr that lists **both** halves of what a herdr session can do — plus
+whatever you add yourself — in a single Sublime-Text-style picker behind a single key:
 
 - herdr's own built-in operations — Workspace, Tab, Pane, Agent, Config;
-- every action exposed by every other installed plugin.
+- every action exposed by every other installed plugin;
+- your own commands, if you declare any — see [Your own commands](#your-own-commands).
 
 > **Credits.** The built-in-operations half started from [herdr-command-palette by Hiroyuki
 > Ota][ota]; the plugin-action half is modelled on [herdr-command-palette by Jan Tvrdík][jt].
@@ -62,6 +63,56 @@ macOS those can only fail).
 
 If `herdr plugin action list` fails, or no other plugin is installed, the built-in half still
 works — the plugin half is additive, never a prerequisite.
+
+### Your own commands
+
+Anything you run often enough to want it a keystroke away — `lazygit`, `make test`, a script of
+your own — can be a palette row. Declare it in the palette's own config file:
+
+```bash
+herdr plugin config-dir vjeantet.palette   # prints the directory; the file is config.toml in it
+```
+
+```toml
+[[command]]
+id    = "lazygit"                 # unique among your entries; lowercase, digits, . - _
+title = "Lazygit"                 # shown as "User: Lazygit"
+argv  = ["lazygit"]               # one array element per argument — never a shell string
+placement = "zoomed"              # split (default) | tab | zoomed
+
+[[command]]
+id    = "test"
+title = "Cargo test"
+argv  = ["cargo", "test"]
+hold  = true                      # keep the pane open after a run that succeeded
+cwd   = "/home/me/project"        # default: the working directory of the pane you came from
+
+[[command]]
+id    = "edit"
+title = "Edit a file"
+argv  = ["nvim"]
+input = { prompt = "File", required = true }   # asked for, then appended to argv as one element
+```
+
+Your entries appear first in the picker, before the built-in commands. Picking one opens a pane
+running that command: `split` next to the pane you came from, `tab` as a new tab, `zoomed`
+full-screen. The pane closes when the command exits, unless the command **failed** — a nonzero
+exit always holds the pane open on its own output, with the exit status, until you press a key.
+`hold = true` does the same for a run that succeeded.
+
+Everything here is passed to the command as-is. `argv` is an array, not a command line: no
+shell, no globbing, no `$VAR`, no pipes or redirections. An entry that needs any of those needs
+a script, and `argv = ["/path/to/script.sh"]`. The same goes for what you type into an `input`:
+it becomes exactly one argument, spaces and all.
+
+The file is yours and is never validated at install time, so the palette is forgiving with it:
+an entry it cannot make sense of is skipped and counted in the header line at the top of the
+picker, and everything else — your other entries, the built-in commands, the plugin actions —
+keeps working. A file that is not valid TOML costs you your own entries, nothing more. Unknown
+keys are ignored, so a config written for a later version still loads.
+
+Your entries only ever add rows. They cannot rename, replace, reorder or hide a built-in
+command or a plugin action.
 
 ### Why one palette and not two
 
@@ -145,6 +196,10 @@ different key or uninstall it, since all three expose an action called `open`.
   herdr server side (no TTY) and opens the palette as a popup pane, which does have a TTY and
   runs the picker (`herdr-palette ui`). The popup is session-modal and sized independently of your
   tiled layout, and doesn't show up in your pane list.
+- A command of your own runs in a pane of its own, opened on this plugin's `runner` entrypoint.
+  The palette hands herdr the argv in an environment variable; `herdr-palette run` reads it
+  there and spawns the program directly. No shell is involved at any point, which is why an
+  `argv` element can hold spaces, quotes or semicolons without any escaping.
 - If your herdr version is below the plugin's minimum, herdr won't load the plugin at all. If
   the herdr you're running has drifted from the protocol version this catalog was built
   against, or if that protocol can't be read at all, the palette header shows a warning — it

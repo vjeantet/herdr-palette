@@ -39,3 +39,15 @@ placement = "popup"
 width = 80
 height = 24
 command = ["bash", "-c", "exec \"$HERDR_PLUGIN_ROOT/target/release/herdr-palette\" ui"]
+
+# Host pane for user-declared commands (see README, "Your own commands"). It
+# exists only so `plugin pane open --entrypoint runner` has something to open:
+# the argv to run arrives in PALETTE_RUN_ARGV and is spawned directly, never
+# through a shell. `placement` here is just the default; the palette overrides
+# it per entry with --placement. No width/height: herdr rejects both outside
+# popup placement.
+[[panes]]
+id = "runner"
+title = "User command"
+placement = "split"
+command = ["bash", "-c", "exec \"$HERDR_PLUGIN_ROOT/target/release/herdr-palette\" run"]

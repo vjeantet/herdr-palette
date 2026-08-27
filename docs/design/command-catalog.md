@@ -21,7 +21,9 @@ This design instead declares the command list in a `commands.json` bundled with 
 and the palette reads the definitions and executes them. Schema validation of the
 definitions happens at development time and in CI, never at runtime. There is no feature for
 users to define arbitrary shell commands or jq filters. The JSON catalog is under Git and
-code review, and it is never merged with user settings.
+code review, and it is never merged with user settings. (Since 2026-08-27 users can declare
+commands of their own, in a separate file that is still never merged with this catalog and
+still never evaluates a shell — see the amendment under "Out of scope".)
 
 This design follows what was agreed in a design discussion on 2026-08-16: move the command
 list into JSON; represent arguments as free input, selection from herdr's list results, or a
@@ -44,6 +46,21 @@ This design achieves the following:
 - Show invalid definitions and runtime errors to the user; never hide a failure.
 
 ## Out of scope
+
+> **Amendment (2026-08-27) — user-declared commands.** The first two exclusions below no longer
+> describe the implementation, and the reasoning that produced them has been narrowed rather
+> than dropped. Users can now declare their own palette entries, in a **TOML** file of their
+> own (`$HERDR_PLUGIN_CONFIG_DIR/config.toml`), read at startup alongside this catalog. What
+> survives unchanged: that file is never *merged* with `commands.json` and can never override,
+> reorder or hide anything in it — it only appends rows, under their own `user:` key namespace;
+> and no shell is ever evaluated. A user entry declares an `argv` **array**, one element per
+> argument, which herdr runs in a pane of its own through this plugin's `runner` entrypoint. A
+> shell string, an interpolation syntax, and `herdr pane run` (which joins its arguments with
+> spaces and types the result into the pane's shell, unquoted) were all considered and
+> rejected on exactly the grounds stated here. Validation stays out of the runtime in the sense
+> that mattered — nothing is schema-checked at startup — but a hand-written file has no CI
+> behind it, so a malformed entry is skipped and reported in the picker header instead of
+> being a hard error. See the README's "Your own commands".
 
 The initial version does not implement:
 

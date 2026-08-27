@@ -1,13 +1,16 @@
 mod actions;
 mod catalog;
+mod custom;
 mod exec;
 mod fatal;
 mod herdr;
 mod keys;
+mod launch;
 mod open;
 mod origin;
 mod resolve;
 mod rows;
+mod runner;
 mod ui;
 
 use std::process::ExitCode;
@@ -29,8 +32,18 @@ fn main() -> ExitCode {
             }
         },
         Some("ui") => run_ui(),
+        // The pane opened for a user command: no picker, no TTY dance beyond
+        // the optional hold. Errors go to stderr, where the held pane shows
+        // them.
+        Some("run") => match runner::run() {
+            Ok(code) => code,
+            Err(err) => {
+                eprintln!("{err}");
+                ExitCode::from(1)
+            }
+        },
         _ => {
-            eprintln!("usage: herdr-palette <open|ui>");
+            eprintln!("usage: herdr-palette <open|ui|run>");
             ExitCode::from(2)
         }
     }
@@ -56,9 +69,19 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
     let catalog = catalog::load_catalog(&root)?;
     let herdr = herdr::HerdrClient::from_env();
 
-    let header = protocol_header(&catalog, &herdr);
+    let user = custom::load();
+
+    // The user's own file wins the single header line: a protocol mismatch is
+    // passive information, while a rejected entry is something the person
+    // looking at the screen just wrote and can fix.
+    let header = if user.warning.is_empty() {
+        protocol_header(&catalog, &herdr)
+    } else {
+        user.warning.clone()
+    };
     let hints = keys::KeyHints::load();
-    let mut rows = rows::catalog_rows(&catalog, &hints);
+    let mut rows = rows::user_rows(&user.commands);
+    rows.extend(rows::catalog_rows(&catalog, &hints));
     rows.extend(actions::plugin_rows(&herdr, &hints));
 
     let picked = ui.pick(&PickScreen {
@@ -71,6 +94,20 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
         PickOutcome::Selected(id) => id,
         PickOutcome::Cancelled => return Ok(ExitCode::SUCCESS),
     };
+
+    // A user row runs its own argv in a pane of its own; none of the catalog
+    // machinery below applies to it either.
+    if let Some(id) = selected_id.strip_prefix("user:") {
+        let command = user
+            .commands
+            .iter()
+            .find(|command| command.id == id)
+            .ok_or_else(|| {
+                Fatal::new("command-palette: internal error: selected user command not found")
+            })?;
+        launch::run(command, &origin, &herdr, ui)?;
+        return Ok(ExitCode::SUCCESS);
+    }
 
     // A plugin row dispatches straight to herdr's plugin runner. None of the
     // catalog machinery below (arguments, confirmation, argv assembly)
