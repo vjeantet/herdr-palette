@@ -162,10 +162,19 @@ fn render_pick(
             // Right-align the keybinding hint, dim over the row's base
             // style; a row too narrow for label + hint drops the hint.
             spans.push(Span::styled(" ".repeat(width - shown - hint_len), base));
-            spans.push(Span::styled(
-                row.hint.clone(),
-                base.add_modifier(Modifier::DIM),
-            ));
+            let (faded, key) = split_hint(&row.hint);
+            if faded.is_empty() {
+                spans.push(Span::styled(
+                    key.to_string(),
+                    base.add_modifier(Modifier::DIM),
+                ));
+            } else {
+                spans.push(Span::styled(
+                    faded.to_string(),
+                    base.add_modifier(Modifier::DIM),
+                ));
+                spans.push(Span::styled(key.to_string(), base));
+            }
         } else if visible_index == selected && width > shown {
             // Pad the selected row so the reversed bar spans the full width.
             spans.push(Span::styled(" ".repeat(width - shown), base));
@@ -178,6 +187,19 @@ fn render_pick(
         (screen.prompt.chars().count() + query.chars().count()).min(width.saturating_sub(1));
     frame.set_cursor_position(Position::new(cursor_x as u16, area.y));
 }
+
+/// Splits a keybinding hint into the leading `prefix+` and the rest. That
+/// prefix repeats on nearly every catalog row, so it is faded out while the
+/// part that actually names the key keeps the base style. A hint that does
+/// not start with it has nothing to fade and is returned whole.
+fn split_hint(hint: &str) -> (&str, &str) {
+    match hint.split_once('+') {
+        Some(("prefix", rest)) => (&hint[..PREFIX.len()], rest),
+        _ => ("", hint),
+    }
+}
+
+const PREFIX: &str = "prefix+";
 
 /// The rule separating the query from the results doubles as the warning
 /// channel: an empty header renders as a bare full-width rule, anything else
@@ -358,6 +380,21 @@ impl Ui for TuiUi {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_prefixed_hint_fades_only_its_prefix() {
+        assert_eq!(super::split_hint("prefix+shift+f"), ("prefix+", "shift+f"));
+    }
+
+    #[test]
+    fn a_hint_without_the_prefix_stays_whole() {
+        assert_eq!(super::split_hint("ctrl+alt+z"), ("", "ctrl+alt+z"));
+    }
+
+    #[test]
+    fn a_key_merely_starting_with_the_prefix_letters_stays_whole() {
+        assert_eq!(super::split_hint("prefixed+p"), ("", "prefixed+p"));
+    }
+
     use super::rule_line;
 
     #[test]
