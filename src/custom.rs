@@ -10,7 +10,7 @@
 //! Unlike `commands.json` there is no `schema_version`: unknown keys are
 //! tolerated and the format only ever grows.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
@@ -142,7 +142,7 @@ pub(crate) fn parse(text: &str) -> UserCatalog {
         let named = entry
             .get("id")
             .and_then(toml::Value::as_str)
-            .map(str::to_string)
+            .map(display_name)
             .unwrap_or_else(|| format!("#{}", index + 1));
         match parse_entry(entry, &commands) {
             Ok(command) => commands.push(command),
@@ -161,6 +161,24 @@ pub(crate) fn parse(text: &str) -> UserCatalog {
         )
     };
     UserCatalog { commands, warning }
+}
+
+/// An id as the user wrote it, made safe to name in the warning. It is read
+/// before any validation, so it may hold anything at all; the header is a
+/// single unwrapped line (`ui::tui::rule_line`), which a newline or a stray
+/// control byte would garble.
+fn display_name(raw: &str) -> String {
+    const MAX: usize = 32;
+    let cleaned: String = raw
+        .chars()
+        .take(MAX)
+        .map(|c| if c.is_control() { '?' } else { c })
+        .collect();
+    if raw.chars().nth(MAX).is_some() {
+        format!("{cleaned}...")
+    } else {
+        cleaned
+    }
 }
 
 fn parse_entry(entry: &toml::Value, accepted: &[UserCommand]) -> Result<UserCommand, &'static str> {
@@ -205,6 +223,29 @@ fn parse_entry(entry: &toml::Value, accepted: &[UserCommand]) -> Result<UserComm
         Some(text) => Placement::parse(text).ok_or("unknown placement")?,
     };
 
+    // A relative cwd would be checked here, in the popup process, and then
+    // resolved somewhere else entirely: herdr hands `--cwd` to a bare
+    // `PathBuf::from` (0.8.2, `api/plugins/panes.rs`, `plugin_pane_cwd`) and
+    // spawns the pane from the server process, whose own working directory has
+    // nothing to do with this one. Only an absolute path names the same
+    // directory on both sides.
+    let cwd = match raw.cwd.filter(|cwd| !cwd.is_empty()) {
+        None => None,
+        Some(cwd) => {
+            let path = Path::new(&cwd);
+            if !path.is_absolute() {
+                return Err("cwd is not absolute");
+            }
+            // Rejected at load rather than at launch, where the alternatives
+            // are both worse: silently running somewhere else, or failing on a
+            // row the picker had shown as fine.
+            if !path.is_dir() {
+                return Err("cwd is not a directory");
+            }
+            Some(cwd)
+        }
+    };
+
     let input = match raw.input {
         None => None,
         Some(input) => {
@@ -225,7 +266,7 @@ fn parse_entry(entry: &toml::Value, accepted: &[UserCommand]) -> Result<UserComm
         argv,
         placement,
         hold: raw.hold.unwrap_or(false),
-        cwd: raw.cwd.filter(|cwd| !cwd.is_empty()),
+        cwd,
         input,
     })
 }
@@ -446,5 +487,59 @@ argv = ["true"]
 cwd = """#,
         );
         assert_eq!(catalog.commands[0].cwd, None);
+    }
+
+    fn with_cwd(cwd: &str) -> UserCatalog {
+        parse(&format!(
+            "[[command]]\nid = \"x\"\ntitle = \"X\"\nargv = [\"true\"]\ncwd = \"{cwd}\"\n"
+        ))
+    }
+
+    #[test]
+    fn an_existing_absolute_cwd_is_kept() {
+        let catalog = with_cwd("/");
+        assert_eq!(catalog.commands[0].cwd.as_deref(), Some("/"));
+        assert_eq!(catalog.warning, "");
+    }
+
+    // The popup and the herdr server resolve a relative path against different
+    // working directories, so one would be validated here and used there.
+    #[test]
+    fn a_relative_cwd_is_rejected() {
+        let catalog = with_cwd("src");
+        assert!(catalog.commands.is_empty());
+        assert!(catalog.warning.ends_with("x (cwd is not absolute)"));
+    }
+
+    #[test]
+    fn a_cwd_naming_no_directory_is_rejected_rather_than_replaced() {
+        let catalog = with_cwd("/no/such/directory/here");
+        assert!(catalog.commands.is_empty());
+        assert!(catalog.warning.ends_with("x (cwd is not a directory)"));
+    }
+
+    #[test]
+    fn a_rejected_id_cannot_break_the_single_warning_line() {
+        let catalog = parse("[[command]]\nid = \"a\\nb\"\ntitle = \"X\"\nargv = [\"true\"]\n");
+        assert_eq!(
+            catalog.warning,
+            "warning: 1 user command skipped: a?b (invalid id)"
+        );
+        assert_eq!(catalog.warning.lines().count(), 1);
+    }
+
+    #[test]
+    fn a_very_long_id_is_truncated_in_the_warning() {
+        let long = "z".repeat(80);
+        let catalog = parse(&format!(
+            "[[command]]\nid = \"{long}!\"\ntitle = \"X\"\nargv = [\"true\"]\n"
+        ));
+        assert_eq!(
+            catalog.warning,
+            format!(
+                "warning: 1 user command skipped: {} (invalid id)",
+                "z".repeat(32) + "..."
+            )
+        );
     }
 }

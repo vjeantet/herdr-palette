@@ -149,17 +149,15 @@ fn open_args(command: &UserCommand, argv_json: &str, origin: &Origin) -> Vec<Str
     args
 }
 
-/// The entry's own `cwd` when it names an existing directory, else the origin
-/// pane's. Neither being usable leaves the flag out, and herdr falls back to
-/// the plugin root.
+/// The entry's own `cwd`, else the origin pane's. An entry that declared one
+/// is honoured or nothing: it was checked at load (absolute, and an existing
+/// directory — `custom.rs`), so falling back here would be running the command
+/// somewhere the user never named. Neither path being usable leaves the flag
+/// out, and herdr falls back to the plugin root.
 fn launch_cwd(command: &UserCommand, origin: &Origin) -> Option<String> {
-    let usable = |path: &String| !path.is_empty() && Path::new(path).is_dir();
-    command
-        .cwd
-        .as_ref()
-        .filter(|cwd| usable(cwd))
-        .or(Some(&origin.cwd).filter(|cwd| usable(cwd)))
-        .cloned()
+    command.cwd.clone().or_else(|| {
+        Some(origin.cwd.clone()).filter(|cwd| !cwd.is_empty() && Path::new(cwd).is_dir())
+    })
 }
 
 /// Every runner pane would otherwise carry the manifest's static title, since
@@ -254,6 +252,32 @@ mod tests {
     fn the_argv_travels_as_one_json_environment_variable() {
         let args = args_for(Placement::Split);
         assert!(args.iter().any(|arg| arg == "PALETTE_RUN_ARGV=[\"true\"]"));
+    }
+
+    #[test]
+    fn a_declared_cwd_travels_instead_of_the_origin_one() {
+        let mut command = command(Placement::Split);
+        command.cwd = Some("/".to_string());
+        let mut origin = origin();
+        origin.cwd = "/usr".to_string();
+        let args = open_args(&command, "[]", &origin);
+        assert!(args.windows(2).any(|w| w == ["--cwd", "/"]));
+    }
+
+    #[test]
+    fn an_entry_without_a_cwd_runs_where_the_origin_pane_was() {
+        let mut origin = origin();
+        origin.cwd = "/usr".to_string();
+        let args = open_args(&command(Placement::Split), "[]", &origin);
+        assert!(args.windows(2).any(|w| w == ["--cwd", "/usr"]));
+    }
+
+    #[test]
+    fn an_unusable_origin_cwd_leaves_the_flag_out() {
+        let mut origin = origin();
+        origin.cwd = "/no/such/directory/here".to_string();
+        let args = open_args(&command(Placement::Split), "[]", &origin);
+        assert!(!args.iter().any(|arg| arg == "--cwd"));
     }
 
     #[test]

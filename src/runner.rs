@@ -19,14 +19,14 @@ pub fn run() -> Result<ExitCode, Fatal> {
 
     let status = Command::new(&argv[0]).args(&argv[1..]).status();
     let (code, note) = match status {
-        Ok(status) => {
-            let code = status.code().unwrap_or(1);
-            if code == 0 {
-                (0, None)
-            } else {
-                (code, Some(format!("exited with status {code}")))
+        Ok(status) => match status.code() {
+            Some(0) => (0, None),
+            Some(code) => (code, Some(format!("exited with status {code}"))),
+            None => {
+                let (code, note) = terminated(&status);
+                (code, Some(note))
             }
-        }
+        },
         // A missing binary is the likeliest failure of a hand-written entry,
         // and the one that must never vanish silently.
         Err(err) => (127, Some(format!("cannot run {}: {err}", argv[0]))),
@@ -39,6 +39,20 @@ pub fn run() -> Result<ExitCode, Fatal> {
         wait_for_key();
     }
     Ok(ExitCode::from(u8::try_from(code).unwrap_or(1)))
+}
+
+/// A child killed by a signal has no exit code on Unix: `ExitStatus::code()`
+/// is `None` there, and reporting "status 1" would send the user looking for a
+/// code nothing ever returned. The 128 + N convention is the shells'.
+fn terminated(status: &std::process::ExitStatus) -> (i32, String) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(signal) = status.signal() {
+            return (128 + signal, format!("killed by signal {signal}"));
+        }
+    }
+    (1, "ended without an exit status".to_string())
 }
 
 fn argv_from_env() -> Result<Vec<String>, Fatal> {

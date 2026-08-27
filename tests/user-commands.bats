@@ -165,6 +165,54 @@ TOML
   [[ "$(herdr_calls)" == *"--placement zoomed"* ]]
 }
 
+@test "a declared cwd travels to herdr instead of the origin one" {
+  mkdir -p "$BATS_TEST_TMPDIR/elsewhere"
+  write_user_config <<TOML
+[[command]]
+id = "here"
+title = "Here"
+argv = ["true"]
+cwd = "$BATS_TEST_TMPDIR/elsewhere"
+TOML
+  export PALETTE_STUB_SELECT_ID="user:here"
+
+  run "$(palette_bin)" ui
+
+  [[ "$(herdr_calls)" == *"--cwd $BATS_TEST_TMPDIR/elsewhere"* ]]
+}
+
+# The popup process and the herdr server have different working directories,
+# so a relative path would not name the same place on both sides.
+@test "an entry whose cwd is relative is never offered" {
+  write_user_config <<'TOML'
+[[command]]
+id = "rel"
+title = "Rel"
+argv = ["true"]
+cwd = "src"
+TOML
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [[ "$(picker_lines)" != *"user:rel"* ]]
+}
+
+@test "an entry whose cwd names no directory is never offered" {
+  write_user_config <<'TOML'
+[[command]]
+id = "gone"
+title = "Gone"
+argv = ["true"]
+cwd = "/no/such/directory/here"
+TOML
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [[ "$(picker_lines)" != *"user:gone"* ]]
+}
+
 @test "hold travels to the runner as an environment variable" {
   write_user_config <<'TOML'
 [[command]]
@@ -349,6 +397,16 @@ TOML
 
   [ "$status" -eq 3 ]
   [[ "$output" == *"exited with status 3"* ]]
+}
+
+@test "a command killed by a signal is reported as killed, not as an exit code" {
+  export PALETTE_RUN_ARGV='["sh","-c","kill -9 $$"]'
+
+  run "$(palette_bin)" run
+
+  [ "$status" -eq 137 ]
+  [[ "$output" == *"killed by signal 9"* ]]
+  [[ "$output" != *"exited with status"* ]]
 }
 
 @test "the runner reports a command it cannot start" {

@@ -85,7 +85,7 @@ id    = "test"
 title = "Cargo test"
 argv  = ["cargo", "test"]
 hold  = true                      # keep the pane open after a run that succeeded
-cwd   = "/home/me/project"        # default: the working directory of the pane you came from
+cwd   = "/home/me/project"        # absolute, and must exist; default: the pane you came from
 
 [[command]]
 id    = "edit"
@@ -104,6 +104,14 @@ Everything here is passed to the command as-is. `argv` is an array, not a comman
 shell, no globbing, no `$VAR`, no pipes or redirections. An entry that needs any of those needs
 a script, and `argv = ["/path/to/script.sh"]`. The same goes for what you type into an `input`:
 it becomes exactly one argument, spaces and all.
+
+With no shell in the chain, `argv[0]` is looked up in the `PATH` the **herdr server** was
+started with, which is not always the one your panes get: a pane runs your shell, and on macOS
+that is a login shell reading your profile, while herdr launched from the Dock inherits
+launchd's minimal `PATH`. A command that works in every pane can still fail here with
+`cannot run …`. Name the binary by its absolute path when that happens. `cwd` is subject to
+the same split — it is handed to the server untouched, so it has to be absolute; a relative
+one, or one naming no directory, is refused like any other broken entry.
 
 The file is yours and is never validated at install time, so the palette is forgiving with it:
 an entry it cannot make sense of is skipped and counted in the header line at the top of the
