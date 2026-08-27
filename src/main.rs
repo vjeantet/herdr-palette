@@ -3,6 +3,7 @@ mod catalog;
 mod exec;
 mod fatal;
 mod herdr;
+mod keys;
 mod open;
 mod origin;
 mod resolve;
@@ -56,12 +57,14 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
     let herdr = herdr::HerdrClient::from_env();
 
     let header = protocol_header(&catalog, &herdr);
-    let mut rows = rows::catalog_rows(&catalog);
-    rows.extend(actions::plugin_rows(&herdr));
+    let hints = keys::KeyHints::load();
+    let mut rows = rows::catalog_rows(&catalog, &hints);
+    rows.extend(actions::plugin_rows(&herdr, &hints));
 
     let picked = ui.pick(&PickScreen {
         header,
-        prompt: "herdr > ".to_string(),
+        prompt: String::new(),
+        placeholder: "type to search commands".to_string(),
         rows,
     })?;
     let selected_id = match picked {
@@ -102,6 +105,7 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
         let choice = ui.pick(&PickScreen {
             header: confirm.to_string(),
             prompt: "confirm > ".to_string(),
+            placeholder: String::new(),
             rows: vec![Row::plain("No"), Row::plain("Yes")],
         })?;
         match choice {
@@ -116,7 +120,7 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
 
 /// The picker header doubles as the protocol warning channel: neither an
 /// unreadable protocol nor a mismatch blocks execution. Empty means no
-/// warning — the TUI then drops the header line entirely.
+/// warning — the TUI then renders its separator rule bare.
 fn protocol_header(catalog: &catalog::Catalog, herdr: &herdr::HerdrClient) -> String {
     let expected = catalog
         .expected_herdr_protocol

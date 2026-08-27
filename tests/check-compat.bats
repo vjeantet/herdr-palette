@@ -46,6 +46,30 @@ teardown() {
   [[ "$output" == *"protocol mismatch: commands.json expects 20, herdr reports 21"* ]]
 }
 
+@test "FAILs when a catalog default key drifts from herdr --default-config" {
+  HERDR_STUB_DEFAULT_CONFIG='# new_tab = "prefix+t"'
+  export HERDR_STUB_DEFAULT_CONFIG
+  run bash "$ROOT/scripts/check-compat.sh"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"tab.new: catalog says the default for new_tab is 'prefix+c' but herdr --default-config says 'prefix+t'"* ]]
+}
+
+@test "OK when the default-config template omits a catalog keys_action" {
+  # Only one field in the template: every other keyed entry is skipped.
+  HERDR_STUB_DEFAULT_CONFIG='# new_tab = "prefix+c"'
+  export HERDR_STUB_DEFAULT_CONFIG
+  run bash "$ROOT/scripts/check-compat.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "OK with a note on a herdr without --default-config" {
+  HERDR_STUB_DEFAULT_CONFIG=""
+  export HERDR_STUB_DEFAULT_CONFIG
+  run bash "$ROOT/scripts/check-compat.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"skipping default keybinding check"* ]]
+}
+
 @test "FAILs on a duplicate command id" {
   FIXTURE_REPO="$(setup_fixture_repo "$ROOT/tests/fixtures/catalogs/duplicate-id.json")"
   run bash "$FIXTURE_REPO/scripts/check-compat.sh"

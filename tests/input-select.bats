@@ -17,6 +17,8 @@ setup() {
   export ORIGIN_WORKSPACE_ID="w1"
   export ORIGIN_CWD="$BATS_TEST_TMPDIR"
   export PALETTE_STUB=1
+  # Hermetic keybinding hints: never read the developer's real herdr config.
+  export HERDR_CONFIG_PATH="$BATS_TEST_TMPDIR/herdr-config.toml"
   export PALETTE_STUB_DUMP="$BATS_TEST_TMPDIR/picker-dump"
 }
 

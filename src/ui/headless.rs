@@ -57,8 +57,10 @@ impl HeadlessUi {
         for row in &screen.rows {
             let line = if row.id == row.label {
                 format!("{}\n", row.id)
-            } else {
+            } else if row.hint.is_empty() {
                 format!("{}\t{}\n", row.id, row.label)
+            } else {
+                format!("{}\t{}\t{}\n", row.id, row.label, row.hint)
             };
             let _ = file.write_all(line.as_bytes());
         }

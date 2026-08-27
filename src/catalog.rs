@@ -35,6 +35,14 @@ pub struct CommandEntry {
     /// Presence triggers the No/Yes confirmation screen; the string is its
     /// header.
     pub confirm: Option<String>,
+    /// Name of the herdr `[keys]` field bound to this operation, if any —
+    /// the user's config.toml override of that field wins over `key`.
+    #[serde(default)]
+    pub keys_action: Option<String>,
+    /// herdr's default binding for that field (kept honest against
+    /// `herdr --default-config` by scripts/check-compat.sh).
+    #[serde(default)]
+    pub key: Option<String>,
 }
 
 /// One argument of a catalog command, a discriminated union on `source`.

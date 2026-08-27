@@ -14,6 +14,9 @@
 #      agent list) resolve the same way.
 #   5. every command supplies positional arguments compatible in count and
 #      name with its subcommand's required positionals.
+#   6. every "key" (default keybinding hint) in commands.json matches the
+#      default herdr's --default-config template records for its
+#      "keys_action" field, where the template lists that field.
 # It also checks that every literal "--flag" argument in commands.json
 # actually appears in that subcommand's help output, without duplicating the
 # flag list in this script — the flags are extracted from commands.json.
@@ -495,6 +498,35 @@ EOF3
 done <<EOF
 $pairs
 EOF
+
+# --- Check 6: catalog default keybindings vs `herdr --default-config` ---
+# Every "key" in commands.json claims to be herdr's default binding for its
+# "keys_action" field. The template prints those defaults as commented-out
+# lines (`# next_tab = "prefix+n"`). Fields the template does not list
+# (e.g. swap_pane_*, an omission in the template itself) cannot be checked
+# and are skipped; a herdr without --default-config skips the whole check.
+
+default_config=$("$herdr_bin" --default-config 2>/dev/null)
+if [ -z "$default_config" ]; then
+  echo "NOTE: herdr --default-config prints nothing; skipping default keybinding check"
+else
+  default_keys=$(printf '%s\n' "$default_config" \
+    | sed -n 's/^# *\([a-z_][a-z_]*\) = "\([^"]*\)".*$/\1 \2/p')
+  tab_char=$(printf '\t')
+  while IFS="$tab_char" read -r id keys_action key; do
+    [ -n "$id" ] || continue
+    template_line=$(printf '%s\n' "$default_keys" | grep "^$keys_action " | head -n 1)
+    if [ -z "$template_line" ]; then
+      continue
+    fi
+    template_key="${template_line#* }"
+    if [ "$template_key" != "$key" ]; then
+      fail "$id: catalog says the default for $keys_action is '$key' but herdr --default-config says '$template_key'"
+    fi
+  done <<EOF
+$(jq -r '.commands[] | select(.key != null) | [.id, .keys_action, .key] | @tsv' "$catalog")
+EOF
+fi
 
 # --- Result ---
 

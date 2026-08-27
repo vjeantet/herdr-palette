@@ -24,6 +24,7 @@
 #   HERDR_STUB_*_LIST_JSON — JSON returned by runtime workspace/tab/agent list calls
 #   HERDR_STUB_LIST_STATUS — nonzero status for runtime list calls
 #   HERDR_STUB_TAB_LIST_WITHOUT_WORKSPACE — omit --workspace from tab list help
+#   HERDR_STUB_DEFAULT_CONFIG — overrides the `--default-config` template ("" = flag unsupported)
 set -uo pipefail
 
 protocol="${HERDR_STUB_PROTOCOL:-20}"
@@ -214,6 +215,82 @@ is_known_group() {
 
 if [ "${1:-}" = "--version" ]; then
   echo "herdr $version"
+  exit 0
+fi
+
+# Annotated config template, the shape `herdr --default-config` prints: the
+# [keys] defaults appear as commented-out lines. Empty unless a test sets
+# HERDR_STUB_DEFAULT_CONFIG — check-compat.sh treats "no output" as an older
+# herdr and skips its default-keybinding check.
+if [ "${1:-}" = "--default-config" ]; then
+  # HERDR_STUB_DEFAULT_CONFIG set (even to "") overrides the captured
+  # template below; an empty value models a herdr without the flag.
+  if [ -n "${HERDR_STUB_DEFAULT_CONFIG+x}" ]; then
+    if [ -n "$HERDR_STUB_DEFAULT_CONFIG" ]; then
+      printf '%s\n' "$HERDR_STUB_DEFAULT_CONFIG"
+    fi
+    exit 0
+  fi
+  cat <<'DEFAULT_CONFIG_EOF'
+[keys]
+# prefix = "ctrl+b"
+# help = "prefix+?"
+# settings = "prefix+s"
+# detach = "prefix+q"
+# reload_config = "prefix+shift+r"
+# open_notification_target = "prefix+o"
+# workspace_picker = "prefix+w"
+# goto = "prefix+g"
+# new_workspace = "prefix+shift+n"
+# new_worktree = "prefix+shift+g"
+# open_worktree = ""    # optional, unset by default
+# remove_worktree = ""  # optional, unset by default; opens confirmation
+# rename_workspace = "prefix+shift+w"
+# close_workspace = "prefix+shift+d"
+# previous_workspace = "" # optional, unset by default
+# next_workspace = ""     # optional, unset by default
+# previous_agent = ""     # optional, unset by default
+# next_agent = ""         # optional, unset by default
+# focus_agent = ""        # optional indexed binding, e.g. "prefix+alt+1..9"
+# remote_image_paste = "ctrl+v" # only active in herdr --remote; empty disables raw-key image paste
+# new_tab = "prefix+c"
+# rename_tab = "prefix+shift+t"
+# previous_tab = "prefix+p"
+# next_tab = "prefix+n"
+# move_tab_previous = ""   # optional, e.g. "alt+shift+left" moves the tab toward the front
+# move_tab_next = ""       # optional, e.g. "alt+shift+right" moves the tab toward the back
+# switch_tab = "prefix+1..9"
+# switch_workspace = ""   # optional indexed binding, e.g. "prefix+shift+1..9"
+# close_tab = "prefix+shift+x"
+# rename_pane = "prefix+shift+p"
+# edit_scrollback = "prefix+e"
+# focus_pane_left = "prefix+h"
+# focus_pane_down = "prefix+j"
+# focus_pane_up = "prefix+k"
+# focus_pane_right = "prefix+l"
+# cycle_pane_next = "prefix+tab"
+# cycle_pane_previous = "prefix+shift+tab"
+# last_pane = ""          # optional, unset by default; bind e.g. "prefix+tab" for global back-and-forth
+# split_vertical = "prefix+v"
+# split_horizontal = "prefix+minus"
+# close_pane = "prefix+x"
+# zoom = "prefix+z"       # legacy alias: fullscreen
+# resize_mode = "prefix+r"
+# resize_pane_left = ""   # optional, e.g. "ctrl+shift+alt+left" resizes without entering resize mode
+# resize_pane_down = ""   # optional, e.g. "ctrl+shift+alt+down"
+# resize_pane_up = ""     # optional, e.g. "ctrl+shift+alt+up"
+# resize_pane_right = ""  # optional, e.g. "ctrl+shift+alt+right"
+# toggle_sidebar = "prefix+b"
+# navigate_workspace_up = "up"
+# navigate_workspace_down = "down"
+# navigate_pane_left = "h"      # left arrow always focuses the pane to the left
+# navigate_pane_down = "j"
+# navigate_pane_up = "k"
+# navigate_pane_right = "l"     # right arrow always focuses the pane to the right
+# type = "shell" runs detached in the background.
+# type = "pane" opens a temporary pane and closes it when the command exits.
+# type = "popup" opens a session-modal terminal without changing the tab layout.
+DEFAULT_CONFIG_EOF
   exit 0
 fi
 

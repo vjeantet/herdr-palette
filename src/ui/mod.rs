@@ -15,6 +15,9 @@ pub struct Row {
     pub id: String,
     /// What the picker displays and fuzzy-matches on (field 2).
     pub label: String,
+    /// Keybinding hint, right-aligned and dim, display-only — never matched
+    /// on. Empty means none; dropped when the row is too narrow for both.
+    pub hint: String,
 }
 
 impl Row {
@@ -23,6 +26,7 @@ impl Row {
         Row {
             id: text.to_string(),
             label: text.to_string(),
+            hint: String::new(),
         }
     }
 }
@@ -30,6 +34,9 @@ impl Row {
 pub struct PickScreen {
     pub header: String,
     pub prompt: String,
+    /// Dim hint shown in place of the query while it is empty. Empty means
+    /// no hint (argument selectors and confirms leave it out).
+    pub placeholder: String,
     pub rows: Vec<Row>,
 }
 

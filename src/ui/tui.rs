@@ -1,7 +1,9 @@
-//! The Sublime-Text-style picker: typed query on the top line, fuzzy-filtered
-//! results underneath, matched characters bold, current selection a
-//! full-width reversed bar. Terminal-default colors only — the popup follows
-//! whatever theme the terminal already has.
+//! The Sublime-Text-style picker: typed query on the top line, a dim rule
+//! under it (which carries the protocol warning when there is one),
+//! fuzzy-filtered results underneath, matched characters bold, keybinding
+//! hints right-aligned and dim, current selection a full-width reversed bar.
+//! Terminal-default colors only — the popup follows whatever theme the
+//! terminal already has.
 
 use std::io::{self, Stdout};
 
@@ -107,10 +109,7 @@ fn render_pick(
 ) {
     let area = frame.area();
     let width = area.width as usize;
-    // The dim header line only exists when there is something to say (a
-    // warning, a screen description); otherwise its row goes to the list.
-    let header_lines: u16 = if screen.header.is_empty() { 1 } else { 2 };
-    let list_height = area.height.saturating_sub(header_lines) as usize;
+    let list_height = area.height.saturating_sub(2) as usize;
 
     // Keep the selection visible.
     if selected < *offset {
@@ -121,19 +120,25 @@ fn render_pick(
     }
 
     let mut lines: Vec<Line> = Vec::with_capacity(2 + list_height);
+    let query_span = if query.is_empty() && !screen.placeholder.is_empty() {
+        Span::styled(
+            screen.placeholder.clone(),
+            Style::default().add_modifier(Modifier::DIM),
+        )
+    } else {
+        Span::raw(query.to_string())
+    };
     lines.push(Line::from(vec![
         Span::styled(
             screen.prompt.clone(),
             Style::default().add_modifier(Modifier::BOLD),
         ),
-        Span::raw(query.to_string()),
+        query_span,
     ]));
-    if !screen.header.is_empty() {
-        lines.push(Line::from(Span::styled(
-            screen.header.clone(),
-            Style::default().add_modifier(Modifier::DIM),
-        )));
-    }
+    lines.push(Line::from(Span::styled(
+        rule_line(&screen.header, width),
+        Style::default().add_modifier(Modifier::DIM),
+    )));
 
     for (visible_index, entry) in filtered.iter().enumerate().skip(*offset).take(list_height) {
         let row = &screen.rows[entry.row];
@@ -152,7 +157,16 @@ fn render_pick(
             spans.push(Span::styled(ch.to_string(), style));
             shown += 1;
         }
-        if visible_index == selected && width > shown {
+        let hint_len = row.hint.chars().count();
+        if hint_len > 0 && shown + 2 + hint_len <= width {
+            // Right-align the keybinding hint, dim over the row's base
+            // style; a row too narrow for label + hint drops the hint.
+            spans.push(Span::styled(" ".repeat(width - shown - hint_len), base));
+            spans.push(Span::styled(
+                row.hint.clone(),
+                base.add_modifier(Modifier::DIM),
+            ));
+        } else if visible_index == selected && width > shown {
             // Pad the selected row so the reversed bar spans the full width.
             spans.push(Span::styled(" ".repeat(width - shown), base));
         }
@@ -163,6 +177,22 @@ fn render_pick(
     let cursor_x =
         (screen.prompt.chars().count() + query.chars().count()).min(width.saturating_sub(1));
     frame.set_cursor_position(Position::new(cursor_x as u16, area.y));
+}
+
+/// The rule separating the query from the results doubles as the warning
+/// channel: an empty header renders as a bare full-width rule, anything else
+/// is embedded in it (`── warning… ───`).
+fn rule_line(header: &str, width: usize) -> String {
+    let mut line = if header.is_empty() {
+        String::new()
+    } else {
+        format!("── {header} ")
+    };
+    let shown = line.chars().count();
+    if width > shown {
+        line.push_str(&"─".repeat(width - shown));
+    }
+    line
 }
 
 impl Ui for TuiUi {
@@ -323,5 +353,30 @@ impl Ui for TuiUi {
         self.restore();
         eprintln!("{message}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rule_line;
+
+    #[test]
+    fn an_empty_header_renders_as_a_bare_full_width_rule() {
+        assert_eq!(rule_line("", 5), "─────");
+    }
+
+    #[test]
+    fn a_warning_is_embedded_in_the_rule_and_padded_to_width() {
+        assert_eq!(rule_line("boom", 12), "── boom ────");
+    }
+
+    #[test]
+    fn a_header_wider_than_the_popup_is_kept_intact() {
+        assert_eq!(rule_line("boom", 5), "── boom ");
+    }
+
+    #[test]
+    fn zero_width_yields_an_empty_rule() {
+        assert_eq!(rule_line("", 0), "");
     }
 }

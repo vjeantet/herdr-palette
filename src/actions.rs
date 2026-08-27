@@ -11,12 +11,14 @@ use serde_json::Value;
 
 use crate::fatal::Fatal;
 use crate::herdr::{merged_output, HerdrClient};
+use crate::keys::KeyHints;
 use crate::ui::Row;
 
 /// Rows are keyed `plugin:<qualified_id>`, which no catalog id can collide
 /// with — commands.schema.json restricts ids to `^[a-z0-9._-]+$`, and that
-/// excludes the colon. The qualified id rides in the display label so typing
-/// a plugin name finds the row (the picker matches on what it shows).
+/// excludes the colon. Labels read `<Name>: <title>` with the name derived
+/// from the plugin id, so typing a plugin name still finds the row (the
+/// picker matches on what it shows) without the raw qualified id as noise.
 ///
 /// Any failure here — the call, its exit status, the JSON — returns no rows
 /// and is deliberately not fatal: the built-in half must stay usable on a
@@ -24,7 +26,7 @@ use crate::ui::Row;
 /// bash/jq version dropped the whole plugin half when a single entry was
 /// malformed; skipping just that entry is strictly closer to the additive
 /// intent.)
-pub fn plugin_rows(herdr: &HerdrClient) -> Vec<Row> {
+pub fn plugin_rows(herdr: &HerdrClient, hints: &KeyHints) -> Vec<Row> {
     let Ok(output) = herdr.raw(["plugin", "action", "list"]) else {
         return Vec::new();
     };
@@ -36,6 +38,7 @@ pub fn plugin_rows(herdr: &HerdrClient) -> Vec<Row> {
         &String::from_utf8_lossy(&output.stdout),
         &self_plugin,
         host_platform(),
+        hints,
     )
 }
 
@@ -52,7 +55,7 @@ fn host_platform() -> &'static str {
     }
 }
 
-fn rows_from_json(raw: &str, self_plugin: &str, platform: &str) -> Vec<Row> {
+fn rows_from_json(raw: &str, self_plugin: &str, platform: &str, hints: &KeyHints) -> Vec<Row> {
     let Ok(value) = serde_json::from_str::<Value>(raw) else {
         return Vec::new();
     };
@@ -87,13 +90,28 @@ fn rows_from_json(raw: &str, self_plugin: &str, platform: &str) -> Vec<Row> {
         let qid = format!("{plugin_id}.{action_id}");
         rows.push(Row {
             id: format!("plugin:{qid}"),
-            label: format!("Plugin: {title}  {qid}"),
+            label: format!("{}: {title}", plugin_display_name(plugin_id)),
+            hint: hints.plugin(&qid),
         });
     }
     // Plugin rows are sorted among themselves by display label; catalog rows
     // keep catalog order ahead of them.
     rows.sort_by(|a, b| a.label.cmp(&b.label));
     rows
+}
+
+/// A human plugin name derived from its id: the segment after the last dot
+/// (vendor prefixes are not names), minus any `herdr-` prefix, first letter
+/// capitalized. `herdr-file-viewer` → `File-viewer`, `jt.command-palette` →
+/// `Command-palette`.
+fn plugin_display_name(plugin_id: &str) -> String {
+    let base = plugin_id.rsplit('.').next().unwrap_or(plugin_id);
+    let base = base.strip_prefix("herdr-").unwrap_or(base);
+    let mut chars = base.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
 }
 
 /// Invoke one plugin action and wait for the dispatched run to reach a
@@ -204,7 +222,7 @@ mod tests {
 
     #[test]
     fn actions_for_this_platform_and_platformless_ones_are_offered() {
-        let rows = rows_from_json(LIST, "", "linux");
+        let rows = rows_from_json(LIST, "", "linux", &KeyHints::empty());
         let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
         assert_eq!(
             ids,
@@ -217,17 +235,34 @@ mod tests {
 
     #[test]
     fn rows_are_sorted_by_display_label() {
-        let rows = rows_from_json(LIST, "", "linux");
+        let rows = rows_from_json(LIST, "", "linux", &KeyHints::empty());
         assert!(rows[0].label < rows[1].label);
     }
 
     #[test]
-    fn the_qualified_id_rides_in_the_display_label() {
-        let rows = rows_from_json(LIST, "", "linux");
-        assert_eq!(
-            rows[1].label,
-            "Plugin: Toggle scratchpad  herdr-scratchpad.open-scratchpad"
+    fn a_row_label_reads_plugin_name_colon_action_title() {
+        let rows = rows_from_json(LIST, "", "linux", &KeyHints::empty());
+        assert_eq!(rows[1].label, "Scratchpad: Toggle scratchpad");
+    }
+
+    #[test]
+    fn a_plugin_row_shows_its_configured_keybinding_hint() {
+        let hints = KeyHints::from_toml(
+            "[[keys.command]]\nkey = \"prefix+a\"\ntype = \"plugin_action\"\ncommand = \"herdr-scratchpad.open-scratchpad\"\n",
         );
+        let rows = rows_from_json(LIST, "", "linux", &hints);
+        assert_eq!(rows[1].hint, "prefix+a");
+        assert_eq!(rows[0].hint, "");
+    }
+
+    #[test]
+    fn a_display_name_drops_the_herdr_prefix_and_capitalizes() {
+        assert_eq!(plugin_display_name("herdr-file-viewer"), "File-viewer");
+    }
+
+    #[test]
+    fn a_display_name_keeps_only_the_segment_after_the_last_dot() {
+        assert_eq!(plugin_display_name("jt.command-palette"), "Command-palette");
     }
 
     #[test]
@@ -236,14 +271,14 @@ mod tests {
             {"plugin_id":"vjeantet.palette","action_id":"open","title":"Command palette"},
             {"plugin_id":"other","action_id":"x","title":"X"}
         ]}}"#;
-        let rows = rows_from_json(raw, "vjeantet.palette", "linux");
+        let rows = rows_from_json(raw, "vjeantet.palette", "linux", &KeyHints::empty());
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].id, "plugin:other.x");
     }
 
     #[test]
     fn an_unknown_host_platform_is_offered_everything() {
-        let rows = rows_from_json(LIST, "", "");
+        let rows = rows_from_json(LIST, "", "", &KeyHints::empty());
         assert_eq!(rows.len(), 3);
     }
 
@@ -253,12 +288,12 @@ mod tests {
             {"plugin_id":"broken"},
             {"plugin_id":"other","action_id":"x","title":"X"}
         ]}}"#;
-        let rows = rows_from_json(raw, "", "linux");
+        let rows = rows_from_json(raw, "", "linux", &KeyHints::empty());
         assert_eq!(rows.len(), 1);
     }
 
     #[test]
     fn invalid_json_yields_no_rows() {
-        assert!(rows_from_json("not json", "", "linux").is_empty());
+        assert!(rows_from_json("not json", "", "linux", &KeyHints::empty()).is_empty());
     }
 }

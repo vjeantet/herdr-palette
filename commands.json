@@ -4,6 +4,8 @@
   "commands": [
     {
       "id": "workspace.switch",
+      "keys_action": "workspace_picker",
+      "key": "prefix+w",
       "title": "Workspace: Switch…",
       "description": "Focus another workspace.",
       "command": ["workspace", "focus"],
@@ -18,6 +20,7 @@
     },
     {
       "id": "workspace.next",
+      "keys_action": "next_workspace",
       "title": "Workspace: Next",
       "description": "Focus the next workspace, wrapping after the last.",
       "command": ["workspace", "focus"],
@@ -27,6 +30,7 @@
     },
     {
       "id": "workspace.previous",
+      "keys_action": "previous_workspace",
       "title": "Workspace: Previous",
       "description": "Focus the previous workspace, wrapping before the first.",
       "command": ["workspace", "focus"],
@@ -36,6 +40,8 @@
     },
     {
       "id": "workspace.new",
+      "keys_action": "new_workspace",
+      "key": "prefix+shift+n",
       "title": "Workspace: New…",
       "description": "Create and focus a workspace in the selected directory.",
       "command": ["workspace", "create"],
@@ -54,6 +60,8 @@
     },
     {
       "id": "workspace.rename",
+      "keys_action": "rename_workspace",
+      "key": "prefix+shift+w",
       "title": "Workspace: Rename current",
       "description": "Enter a new label for the workspace that opened the palette.",
       "command": ["workspace", "rename"],
@@ -69,6 +77,8 @@
     },
     {
       "id": "workspace.close",
+      "keys_action": "close_workspace",
+      "key": "prefix+shift+d",
       "title": "Workspace: Close current",
       "description": "Close the workspace that opened the palette.",
       "command": ["workspace", "close"],
@@ -79,6 +89,8 @@
     },
     {
       "id": "tab.switch",
+      "keys_action": "switch_tab",
+      "key": "prefix+1..9",
       "title": "Tab: Switch…",
       "description": "Focus another tab.",
       "command": ["tab", "focus"],
@@ -93,6 +105,8 @@
     },
     {
       "id": "tab.next",
+      "keys_action": "next_tab",
+      "key": "prefix+n",
       "title": "Tab: Next",
       "description": "Focus the next tab in the current workspace, wrapping after the last.",
       "command": ["tab", "focus"],
@@ -102,6 +116,8 @@
     },
     {
       "id": "tab.previous",
+      "keys_action": "previous_tab",
+      "key": "prefix+p",
       "title": "Tab: Previous",
       "description": "Focus the previous tab in the current workspace, wrapping before the first.",
       "command": ["tab", "focus"],
@@ -111,6 +127,8 @@
     },
     {
       "id": "tab.new",
+      "keys_action": "new_tab",
+      "key": "prefix+c",
       "title": "Tab: New",
       "description": "Create and focus a tab in the workspace that opened the palette.",
       "command": ["tab", "create"],
@@ -122,6 +140,8 @@
     },
     {
       "id": "tab.rename",
+      "keys_action": "rename_tab",
+      "key": "prefix+shift+t",
       "title": "Tab: Rename current",
       "description": "Enter a new label for the tab that opened the palette.",
       "command": ["tab", "rename"],
@@ -137,6 +157,8 @@
     },
     {
       "id": "tab.close",
+      "keys_action": "close_tab",
+      "key": "prefix+shift+x",
       "title": "Tab: Close current",
       "description": "Close the tab that opened the palette.",
       "command": ["tab", "close"],
@@ -147,6 +169,8 @@
     },
     {
       "id": "pane.rename",
+      "keys_action": "rename_pane",
+      "key": "prefix+shift+p",
       "title": "Pane: Rename current",
       "description": "Enter a new label for the pane that opened the palette.",
       "command": ["pane", "rename"],
@@ -162,6 +186,8 @@
     },
     {
       "id": "pane.close",
+      "keys_action": "close_pane",
+      "key": "prefix+x",
       "title": "Pane: Close current",
       "description": "Close the pane that opened the palette.",
       "command": ["pane", "close"],
@@ -172,6 +198,8 @@
     },
     {
       "id": "pane.zoom.toggle",
+      "keys_action": "zoom",
+      "key": "prefix+z",
       "title": "Pane: Toggle zoom",
       "description": "Toggle zoom for the pane that opened the palette.",
       "command": ["pane", "zoom"],
@@ -183,6 +211,8 @@
     },
     {
       "id": "pane.focus.left",
+      "keys_action": "focus_pane_left",
+      "key": "prefix+h",
       "title": "Pane: Focus left",
       "description": "Focus the neighbor to the left of the pane that opened the palette.",
       "command": ["pane", "focus"],
@@ -195,6 +225,8 @@
     },
     {
       "id": "pane.focus.right",
+      "keys_action": "focus_pane_right",
+      "key": "prefix+l",
       "title": "Pane: Focus right",
       "description": "Focus the neighbor to the right of the pane that opened the palette.",
       "command": ["pane", "focus"],
@@ -207,6 +239,8 @@
     },
     {
       "id": "pane.focus.up",
+      "keys_action": "focus_pane_up",
+      "key": "prefix+k",
       "title": "Pane: Focus up",
       "description": "Focus the neighbor above the pane that opened the palette.",
       "command": ["pane", "focus"],
@@ -219,6 +253,8 @@
     },
     {
       "id": "pane.focus.down",
+      "keys_action": "focus_pane_down",
+      "key": "prefix+j",
       "title": "Pane: Focus down",
       "description": "Focus the neighbor below the pane that opened the palette.",
       "command": ["pane", "focus"],
@@ -231,6 +267,8 @@
     },
     {
       "id": "pane.split.right",
+      "keys_action": "split_vertical",
+      "key": "prefix+v",
       "title": "Pane: Split right",
       "description": "Split the pane that opened the palette, placing the new pane to the right.",
       "command": ["pane", "split"],
@@ -243,6 +281,8 @@
     },
     {
       "id": "pane.split.down",
+      "keys_action": "split_horizontal",
+      "key": "prefix+minus",
       "title": "Pane: Split down",
       "description": "Split the pane that opened the palette, placing the new pane below.",
       "command": ["pane", "split"],
@@ -255,6 +295,8 @@
     },
     {
       "id": "pane.swap.left",
+      "keys_action": "swap_pane_left",
+      "key": "prefix+shift+h",
       "title": "Pane: Swap left",
       "description": "Swap the current pane with its left neighbor.",
       "command": ["pane", "swap"],
@@ -267,6 +309,8 @@
     },
     {
       "id": "pane.swap.right",
+      "keys_action": "swap_pane_right",
+      "key": "prefix+shift+l",
       "title": "Pane: Swap right",
       "description": "Swap the current pane with its right neighbor.",
       "command": ["pane", "swap"],
@@ -279,6 +323,8 @@
     },
     {
       "id": "pane.swap.up",
+      "keys_action": "swap_pane_up",
+      "key": "prefix+shift+k",
       "title": "Pane: Swap up",
       "description": "Swap the current pane with its upper neighbor.",
       "command": ["pane", "swap"],
@@ -291,6 +337,8 @@
     },
     {
       "id": "pane.swap.down",
+      "keys_action": "swap_pane_down",
+      "key": "prefix+shift+j",
       "title": "Pane: Swap down",
       "description": "Swap the current pane with its lower neighbor.",
       "command": ["pane", "swap"],
@@ -303,6 +351,7 @@
     },
     {
       "id": "pane.resize.left",
+      "keys_action": "resize_pane_left",
       "title": "Pane: Resize left",
       "description": "Resize the split to the left of the pane that opened the palette by the default amount.",
       "command": ["pane", "resize"],
@@ -315,6 +364,7 @@
     },
     {
       "id": "pane.resize.right",
+      "keys_action": "resize_pane_right",
       "title": "Pane: Resize right",
       "description": "Resize the split to the right of the pane that opened the palette by the default amount.",
       "command": ["pane", "resize"],
@@ -327,6 +377,7 @@
     },
     {
       "id": "pane.resize.up",
+      "keys_action": "resize_pane_up",
       "title": "Pane: Resize up",
       "description": "Resize the split above the pane that opened the palette by the default amount.",
       "command": ["pane", "resize"],
@@ -339,6 +390,7 @@
     },
     {
       "id": "pane.resize.down",
+      "keys_action": "resize_pane_down",
       "title": "Pane: Resize down",
       "description": "Resize the split below the pane that opened the palette by the default amount.",
       "command": ["pane", "resize"],
@@ -351,6 +403,7 @@
     },
     {
       "id": "agent.focus",
+      "keys_action": "focus_agent",
       "title": "Agent: Focus…",
       "description": "Focus another agent pane.",
       "command": ["agent", "focus"],
@@ -365,6 +418,8 @@
     },
     {
       "id": "config.reload",
+      "keys_action": "reload_config",
+      "key": "prefix+shift+r",
       "title": "Config: Reload",
       "description": "Reload the herdr server configuration.",
       "command": ["server", "reload-config"],

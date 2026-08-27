@@ -89,6 +89,7 @@ pub fn resolve_args(
                 let picked = ui.pick(&PickScreen {
                     header: screen_header(description, entry),
                     prompt: prompt.clone(),
+                    placeholder: String::new(),
                     rows,
                 })?;
                 match picked {
@@ -430,6 +431,7 @@ fn workspace_rows(raw: &str, exclude: &str) -> Result<Vec<Row>, Fatal> {
         rows.push(Row {
             label: format!("{label} ({id})"),
             id,
+            hint: String::new(),
         });
     }
     Ok(rows)
@@ -500,6 +502,7 @@ fn prefixed_rows(
         rows.push(Row {
             label: format!("{ws_label} / {}{label} ({id})", spec.label_prefix),
             id,
+            hint: String::new(),
         });
     }
     Ok(rows)

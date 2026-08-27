@@ -77,8 +77,20 @@
           "type": "array",
           "items": { "$ref": "#/$defs/argument" }
         },
-        "confirm": { "$ref": "#/$defs/nonEmptySafeString" }
-      }
+        "confirm": { "$ref": "#/$defs/nonEmptySafeString" },
+        "keys_action": {
+          "type": "string",
+          "description": "Name of the herdr [keys] field bound to this operation. The user's config.toml override of that field wins over 'key' in the picker's hint column.",
+          "pattern": "^[a-z_]+$"
+        },
+        "key": {
+          "type": "string",
+          "description": "herdr's default binding for keys_action, e.g. 'prefix+n'. Kept honest against `herdr --default-config` by scripts/check-compat.sh.",
+          "minLength": 1,
+          "pattern": "^[a-z0-9+.]+$"
+        }
+      },
+      "dependentRequired": { "key": ["keys_action"] }
     },
     "argument": {
       "oneOf": [

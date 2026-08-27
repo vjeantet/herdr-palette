@@ -21,6 +21,8 @@ setup() {
   export ORIGIN_WORKSPACE_ID="w1"
   export ORIGIN_CWD="$BATS_TEST_TMPDIR"
   export PALETTE_STUB=1
+  # Hermetic keybinding hints: never read the developer's real herdr config.
+  export HERDR_CONFIG_PATH="$BATS_TEST_TMPDIR/herdr-config.toml"
 
   write_catalog
   export HERDR_STUB_ACTION_LIST_JSON='{"result":{"actions":[
@@ -64,14 +66,14 @@ picker_lines() {
   [[ "$(picker_lines)" == *"plugin:herdr-scratchpad.open-scratchpad"* ]]
 }
 
-@test "a plugin row carries its qualified id in the searchable display field" {
+@test "a plugin row displays the derived plugin name and the action title" {
   export PALETTE_STUB_SELECT_ID="builtin.test"
 
   run "$(palette_bin)" ui
 
   [ "$status" -eq 0 ]
-  # Field 2 is what fzf displays and matches on, so the id must live there too.
-  [[ "$(picker_lines | grep '^plugin:herdr-scratchpad' | cut -f2)" == *"herdr-scratchpad.open-scratchpad"* ]]
+  # Field 2 is what the picker displays and matches on.
+  [[ "$(picker_lines | grep '^plugin:herdr-scratchpad' | cut -f2)" == "Scratchpad: Toggle scratchpad" ]]
 }
 
 @test "selecting a plugin row invokes the action" {
