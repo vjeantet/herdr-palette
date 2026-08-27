@@ -21,10 +21,6 @@ herdr plugin install vjeantet/herdr-palette
 Requires herdr 0.8.0+ and a [Rust toolchain](https://rustup.rs) on the installing machine:
 the manifest carries a build step (`cargo build --release`) that runs after the clone.
 
-While this repository is private, the clone also needs a GitHub account with access and a
-non-interactive git credential helper for `https://github.com` - `gh auth setup-git` is the
-simplest way to get one.
-
 For development, herdr runs your checkout directly. Rebuild after every change:
 
 ```bash

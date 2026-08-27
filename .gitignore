@@ -1,6 +1,7 @@
 # Project-local scratch (SDD ledgers, briefs) and per-user Claude settings
 .superpowers/
 .claude/
+CLAUDE.md
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos
