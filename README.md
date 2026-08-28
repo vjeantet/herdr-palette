@@ -16,8 +16,11 @@ beyond herdr itself.
 herdr plugin install vjeantet/herdr-palette
 ```
 
-Requires herdr 0.8.0+ and a [Rust toolchain](https://rustup.rs) on the installing machine:
-the manifest carries a build step (`cargo build --release`) that runs after the clone.
+Requires herdr 0.8.0+. The manifest's build step downloads the prebuilt binary published for this
+version and your platform from this repository's GitHub releases, and verifies its SHA-256. Prebuilt
+targets are macOS (Apple silicon and Intel) and Linux (x86_64, aarch64, armv7 - statically linked
+against musl, so no glibc version to match). Anywhere else, or when a release is missing, it builds
+from source instead and a [Rust toolchain](https://rustup.rs) is required.
 
 For development, herdr runs your checkout directly. Rebuild after every change:
 

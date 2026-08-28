@@ -47,16 +47,19 @@ jobs:
           rm -f "$asset" "actionlint_${version}_checksums.txt"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: bash -n
+      # fetch-or-build.sh is /bin/sh, not bash: herdr runs it through
+      # /bin/sh at install time, so it is parsed by the same shell here.
+      - name: shell syntax check
         run: |
           bash -n scripts/check-compat.sh
           bash -n tests/stubs/herdr
+          sh -n scripts/fetch-or-build.sh
 
       - name: shellcheck
-        run: shellcheck scripts/check-compat.sh tests/stubs/herdr
+        run: shellcheck scripts/check-compat.sh scripts/fetch-or-build.sh tests/stubs/herdr
 
       - name: actionlint
-        run: actionlint .github/workflows/ci.yml .github/workflows/compat-check.yml
+        run: actionlint .github/workflows/ci.yml .github/workflows/compat-check.yml .github/workflows/release.yml
 
       - name: Validate the schema itself
         run: check-jsonschema --check-metaschema commands.schema.json

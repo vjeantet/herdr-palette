@@ -6,10 +6,14 @@ description = "Command palette for herdr: built-in operations (tab/workspace/pan
 platforms = ["macos", "linux"]
 
 # Run by `herdr plugin install` after cloning: the manifest points at
-# target/release/herdr-palette, which a fresh checkout does not have.
-# Requires a Rust toolchain on the installing machine (build-time only).
+# target/release/herdr-palette, which a fresh checkout does not have. herdr
+# runs a build command with the manifest root as its cwd, hence the relative
+# path. The script downloads the prebuilt binary published for this version
+# and platform and verifies its SHA-256, falling back to
+# `cargo build --release` on any miss - so a Rust toolchain is only required
+# when no matching release exists (see scripts/fetch-or-build.sh).
 [[build]]
-command = ["cargo", "build", "--release"]
+command = ["/bin/sh", "scripts/fetch-or-build.sh"]
 
 # Entry point that runs server-side (no TTY), so it just opens the popup pane.
 # The action's cwd is the plugin root, so the relative path resolves.

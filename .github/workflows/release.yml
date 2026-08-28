@@ -1,0 +1,154 @@
+name: Release
+
+# Publishes the prebuilt binaries that scripts/fetch-or-build.sh installs at
+# `herdr plugin install` time. Without a release for the version a checkout
+# declares, that script falls back to `cargo build --release` — so a failed or
+# missing release degrades installs to "needs a Rust toolchain", never to a
+# broken plugin.
+#
+# Shape: a draft release is created first, every target uploads its own binary
+# and its own `<asset>.sha256` into it, and the draft is published only once
+# the whole matrix succeeded. Nothing is ever downloadable in a partial state,
+# and no job needs another job's files.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  create-release:
+    name: create the draft release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # actions/checkout@v7.0.1, pinned to its release commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      # fetch-or-build.sh selects a prebuilt by the version in Cargo.toml, and
+      # herdr shows the one in herdr-plugin.toml. A release whose tag disagreed
+      # with either would publish binaries no install could ever find.
+      - name: Verify the tag matches Cargo.toml and herdr-plugin.toml
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          crate="$(grep -E '^version *= *"' Cargo.toml | head -n1 | sed -E 's/^version *= *"([^"]+)".*/\1/')"
+          manifest="$(grep -E '^version *= *"' herdr-plugin.toml | head -n1 | sed -E 's/^version *= *"([^"]+)".*/\1/')"
+          if [ "$tag" != "$crate" ]; then
+            echo "tag $GITHUB_REF_NAME ($tag) != Cargo.toml version ($crate)" >&2
+            exit 1
+          fi
+          if [ "$tag" != "$manifest" ]; then
+            echo "tag $GITHUB_REF_NAME ($tag) != herdr-plugin.toml version ($manifest)" >&2
+            exit 1
+          fi
+
+      # COMMIT records the source this release was built from. The install step
+      # matches a prebuilt by version, not by commit, and fetches this marker
+      # best-effort only to tell the user when their checkout is ahead of it.
+      - name: Create the draft release
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes
+          printf '%s\n' "$GITHUB_SHA" > COMMIT
+          gh release upload "$GITHUB_REF_NAME" COMMIT --clobber
+
+  build:
+    name: build ${{ matrix.triple }}
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: macos-latest
+            triple: aarch64-apple-darwin
+            cross: false
+          - os: macos-latest
+            triple: x86_64-apple-darwin
+            cross: false
+          # Every Linux target is static musl on purpose: a glibc build made on
+          # the runner would not start on Debian 12 (glibc 2.36), which is the
+          # kind of machine this saves the most compiling on. armv7 covers a
+          # Raspberry Pi running a 32-bit armhf userland.
+          - os: ubuntu-latest
+            triple: x86_64-unknown-linux-musl
+            cross: true
+          - os: ubuntu-latest
+            triple: aarch64-unknown-linux-musl
+            cross: true
+          - os: ubuntu-latest
+            triple: armv7-unknown-linux-musleabihf
+            cross: true
+    runs-on: ${{ matrix.os }}
+    steps:
+      # actions/checkout@v7.0.1, pinned to its release commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      # The runner image's preinstalled stable toolchain, for the same reason
+      # ci.yml uses it: no third-party action to pin.
+      - name: Rust toolchain in use
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: Add the target
+        if: ${{ !matrix.cross }}
+        run: rustup target add "${{ matrix.triple }}"
+
+      # cross runs the build in a container that already carries the musl
+      # cross-toolchains; apt's musl-tools only covers x86_64. Pinned, and
+      # --locked so its own dependency resolution cannot drift.
+      - name: Install cross
+        if: ${{ matrix.cross }}
+        run: cargo install cross --locked --version 0.2.5
+
+      - name: Build
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cross build --release --target "${{ matrix.triple }}"
+          else
+            cargo build --release --target "${{ matrix.triple }}"
+          fi
+
+      # The asset name is what fetch-or-build.sh derives from `uname`, and the
+      # checksum line carries that same name — the script matches on it.
+      - name: Stage the asset and its checksum
+        run: |
+          triple="${{ matrix.triple }}"
+          asset="herdr-palette-$triple"
+          mkdir -p dist
+          cp "target/$triple/release/herdr-palette" "dist/$asset"
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$asset" > "$asset.sha256"
+          else
+            shasum -a 256 "$asset" > "$asset.sha256"
+          fi
+          cat "$asset.sha256"
+
+      - name: Upload into the draft release
+        run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+
+  publish:
+    name: publish the release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Undrafting last is what makes the whole matrix atomic from an
+      # installer's point of view: until this step, every asset URL 404s and
+      # fetch-or-build.sh simply builds from source.
+      - name: Undraft
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
