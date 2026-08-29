@@ -171,9 +171,9 @@ mod tests {
     }
 
     #[test]
-    fn the_repo_catalog_parses_with_all_31_commands() {
+    fn the_repo_catalog_parses_with_all_38_commands() {
         let catalog = repo_catalog();
-        assert_eq!(catalog.commands.len(), 31);
+        assert_eq!(catalog.commands.len(), 38);
         assert_eq!(catalog.expected_herdr_protocol, Some(20));
     }
 

@@ -149,6 +149,82 @@ setup() {
   ! grep -q "$(printf 'w1:p1\t')" "$PALETTE_STUB_DUMP"
 }
 
+@test "worktree.new passes the origin cwd and the typed branch" {
+  export PALETTE_STUB_SELECT_ID="worktree.new"
+  export PALETTE_STUB_INPUT="feature/palette"
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "worktree create --cwd $ORIGIN_CWD --branch feature/palette --focus" ]
+}
+
+@test "worktree.open passes the origin cwd and the typed branch" {
+  export PALETTE_STUB_SELECT_ID="worktree.open"
+  export PALETTE_STUB_INPUT="feature/palette"
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "worktree open --cwd $ORIGIN_CWD --branch feature/palette --focus" ]
+}
+
+@test "worktree.remove confirms before removing the selected workspace" {
+  export HERDR_STUB_WORKSPACE_LIST_JSON='{"result":{"workspaces":[{"workspace_id":"w1","label":"one"},{"workspace_id":"w2","label":"two"}]}}'
+  export PALETTE_STUB_SELECT_IDS=$'worktree.remove\nw2\nYes'
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "worktree remove --workspace w2" ]
+}
+
+@test "worktree.remove answered No leaves the checkout alone" {
+  export HERDR_STUB_WORKSPACE_LIST_JSON='{"result":{"workspaces":[{"workspace_id":"w1","label":"one"},{"workspace_id":"w2","label":"two"}]}}'
+  export PALETTE_STUB_SELECT_IDS=$'worktree.remove\nw2\nNo'
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [ ! -f "$HERDR_STUB_CALLS" ]
+}
+
+@test "agent.prompt passes the selected agent before the typed text" {
+  export HERDR_STUB_WORKSPACE_LIST_JSON='{"result":{"workspaces":[{"workspace_id":"w2","label":"two"}]}}'
+  export HERDR_STUB_AGENT_LIST_JSON='{"result":{"agents":[{"pane_id":"w2:p9","workspace_id":"w2","terminal_title_stripped":"claude"}]}}'
+  export PALETTE_STUB_SELECT_IDS=$'agent.prompt\nw2:p9'
+  export PALETTE_STUB_INPUT="run the tests"
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "agent prompt w2:p9 run the tests" ]
+}
+
+@test "agent.prompt keeps the origin pane among the candidates" {
+  export HERDR_STUB_WORKSPACE_LIST_JSON='{"result":{"workspaces":[{"workspace_id":"w1","label":"one"}]}}'
+  export HERDR_STUB_AGENT_LIST_JSON='{"result":{"agents":[{"pane_id":"w1:p1","workspace_id":"w1","terminal_title_stripped":"self"}]}}'
+  export PALETTE_STUB_SELECT_IDS=$'agent.prompt\nw1:p1'
+  export PALETTE_STUB_INPUT="status"
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "agent prompt w1:p1 status" ]
+}
+
+@test "agent.rename passes the typed name after the selected agent" {
+  export HERDR_STUB_WORKSPACE_LIST_JSON='{"result":{"workspaces":[{"workspace_id":"w2","label":"two"}]}}'
+  export HERDR_STUB_AGENT_LIST_JSON='{"result":{"agents":[{"pane_id":"w2:p9","workspace_id":"w2","terminal_title_stripped":"claude"}]}}'
+  export PALETTE_STUB_SELECT_IDS=$'agent.rename\nw2:p9'
+  export PALETTE_STUB_INPUT="reviewer"
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "agent rename w2:p9 reviewer" ]
+}
+
 @test "a confirm answered No cancels without executing" {
   export PALETTE_STUB_SELECT_IDS=$'workspace.close\nNo'
 

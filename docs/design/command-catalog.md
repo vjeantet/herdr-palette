@@ -396,6 +396,13 @@ Pane Swap defines one command per direction.
 The initial version includes the following operations, all safely achievable via the public
 CLI.
 
+Two selection criteria have applied, in order. The initial 31 came from herdr's built-in key
+actions: expose a keybinding wherever the public CLI does the same thing, which is what
+`scripts/check-coverage.sh` still enforces against `keys-coverage.json`. The entries added
+afterwards come from a second, wider criterion - daily usefulness - and have no `keys_action`
+at all, because herdr binds no key to them. The coverage check is unaffected: it verifies that
+every key action is either exposed or classified, not the converse.
+
 ### Workspace
 
 - `Workspace: Switch…`
@@ -404,6 +411,18 @@ CLI.
 - `Workspace: New…`
 - `Workspace: Rename current`
 - `Workspace: Close current`
+
+### Worktree
+
+- `Worktree: New from branch…`
+- `Worktree: Open branch…`
+- `Worktree: Remove…`
+
+`worktree create` and `worktree open` locate the repository through `--cwd`, which carries the
+origin pane's working directory, so the branch is the only thing to type. `worktree remove`
+takes a workspace id, not a worktree id, so it reuses the existing `workspaces` selector; a
+workspace that is not a worktree fails with herdr's own message. It deletes a checkout, so it
+carries a `confirm`.
 
 ### Tab
 
@@ -433,6 +452,8 @@ CLI.
 - `Pane: Resize right`
 - `Pane: Resize up`
 - `Pane: Resize down`
+- `Pane: Move to new tab`
+- `Pane: Move to new workspace`
 
 Resize uses the herdr CLI's default amount; the initial version does not let the user enter an
 amount.
@@ -440,8 +461,13 @@ amount.
 ### Agent
 
 - `Agent: Focus…`
+- `Agent: Prompt…`
+- `Agent: Rename…`
 
-The Agent selector passes the `pane_id` from `herdr agent list` to `herdr agent focus`.
+The Agent selector passes the `pane_id` from `herdr agent list` to `herdr agent focus`, and the
+same value as the `<TARGET>` positional of `agent prompt` and `agent rename`. `Agent: Focus…`
+excludes the origin pane, because focusing the pane you are already in is a no-op; the other
+two do not, because prompting or renaming the agent you started from is a legitimate use.
 
 ### Config
 

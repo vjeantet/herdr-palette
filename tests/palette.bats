@@ -219,6 +219,26 @@ run_navigation() {
   [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "workspace focus w2" ]
 }
 
+@test "the real catalog moves the origin pane to a new tab of its workspace" {
+  export HERDR_PLUGIN_ROOT="$ROOT"
+  export PALETTE_STUB_SELECT_ID="pane.move.new-tab"
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "pane move w1:p1 --new-tab --workspace w1 --focus" ]
+}
+
+@test "the real catalog moves the origin pane to a new workspace without naming one" {
+  export HERDR_PLUGIN_ROOT="$ROOT"
+  export PALETTE_STUB_SELECT_ID="pane.move.new-workspace"
+
+  run "$(palette_bin)" ui
+
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "pane move w1:p1 --new-workspace --focus" ]
+}
+
 @test "the real catalog wires Tab Next to next_tab_id" {
   export HERDR_PLUGIN_ROOT="$ROOT"
   export PALETTE_STUB_SELECT_ID="tab.next"

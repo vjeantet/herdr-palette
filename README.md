@@ -59,8 +59,9 @@ Commands act on the pane, tab and workspace you came from, never on the palette 
 
 **Your own commands** first, prefixed `User:`.
 
-**Built-in operations**, 31 of them: workspace switch/next/previous/new/rename/close, the
-same for tabs, pane rename/close/zoom/focus/split/swap/resize, agent focus, config reload.
+**Built-in operations**, 38 of them: workspace switch/next/previous/new/rename/close, the
+same for tabs, pane rename/close/zoom/focus/split/swap/resize/move, worktree
+new/open/remove, agent focus/prompt/rename, config reload.
 
 **Plugin actions**, one row each as `Plugin: <title>  <plugin_id>.<action_id>` - the
 qualified id is part of the searchable text, so typing a plugin's name finds its actions.

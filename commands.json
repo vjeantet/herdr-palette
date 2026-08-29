@@ -88,6 +88,57 @@
       "confirm": "Close the current workspace?"
     },
     {
+      "id": "worktree.new",
+      "title": "Worktree: New from branch…",
+      "description": "Create a Git worktree for a branch and open it as a workspace.",
+      "command": ["worktree", "create"],
+      "arguments": [
+        { "source": "literal", "value": "--cwd" },
+        { "source": "context", "key": "cwd" },
+        { "source": "literal", "value": "--branch" },
+        {
+          "source": "input",
+          "prompt": "new branch ▸ ",
+          "description": "Enter the branch to create the worktree for.",
+          "required": true
+        },
+        { "source": "literal", "value": "--focus" }
+      ]
+    },
+    {
+      "id": "worktree.open",
+      "title": "Worktree: Open branch…",
+      "description": "Open the existing worktree of a branch as a workspace.",
+      "command": ["worktree", "open"],
+      "arguments": [
+        { "source": "literal", "value": "--cwd" },
+        { "source": "context", "key": "cwd" },
+        { "source": "literal", "value": "--branch" },
+        {
+          "source": "input",
+          "prompt": "branch ▸ ",
+          "description": "Enter the branch whose worktree should be opened.",
+          "required": true
+        },
+        { "source": "literal", "value": "--focus" }
+      ]
+    },
+    {
+      "id": "worktree.remove",
+      "title": "Worktree: Remove…",
+      "description": "Remove the worktree checkout of the selected workspace.",
+      "command": ["worktree", "remove"],
+      "arguments": [
+        { "source": "literal", "value": "--workspace" },
+        {
+          "source": "select",
+          "selector": "workspaces",
+          "prompt": "worktree workspace ▸ "
+        }
+      ],
+      "confirm": "Remove the selected worktree checkout?"
+    },
+    {
       "id": "tab.switch",
       "keys_action": "switch_tab",
       "key": "prefix+1..9",
@@ -402,6 +453,30 @@
       ]
     },
     {
+      "id": "pane.move.new-tab",
+      "title": "Pane: Move to new tab",
+      "description": "Move the pane that opened the palette into a new tab of its workspace.",
+      "command": ["pane", "move"],
+      "arguments": [
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--new-tab" },
+        { "source": "literal", "value": "--workspace" },
+        { "source": "context", "key": "workspace_id" },
+        { "source": "literal", "value": "--focus" }
+      ]
+    },
+    {
+      "id": "pane.move.new-workspace",
+      "title": "Pane: Move to new workspace",
+      "description": "Move the pane that opened the palette into a new workspace.",
+      "command": ["pane", "move"],
+      "arguments": [
+        { "source": "context", "key": "pane_id" },
+        { "source": "literal", "value": "--new-workspace" },
+        { "source": "literal", "value": "--focus" }
+      ]
+    },
+    {
       "id": "agent.focus",
       "keys_action": "focus_agent",
       "title": "Agent: Focus…",
@@ -413,6 +488,44 @@
           "selector": "agents",
           "prompt": "agent ▸ ",
           "exclude_context": "pane_id"
+        }
+      ]
+    },
+    {
+      "id": "agent.prompt",
+      "title": "Agent: Prompt…",
+      "description": "Submit a prompt to the selected agent.",
+      "command": ["agent", "prompt"],
+      "arguments": [
+        {
+          "source": "select",
+          "selector": "agents",
+          "prompt": "agent ▸ "
+        },
+        {
+          "source": "input",
+          "prompt": "prompt ▸ ",
+          "description": "Text to submit to the selected agent.",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "agent.rename",
+      "title": "Agent: Rename…",
+      "description": "Rename the selected agent.",
+      "command": ["agent", "rename"],
+      "arguments": [
+        {
+          "source": "select",
+          "selector": "agents",
+          "prompt": "agent ▸ "
+        },
+        {
+          "source": "input",
+          "prompt": "agent name ▸ ",
+          "description": "Enter the new name for the selected agent.",
+          "required": true
         }
       ]
     },
