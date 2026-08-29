@@ -2,7 +2,7 @@
 
 - herdr's built-in operations - workspace, tab, pane, agent, config;
 - every action of every other installed plugin;
-- your own commands, declared in a config file.
+- your own commands, and texts to drop into an agent's input box, declared in a config file.
 
 A Sublime-Text- or VSCode-style popup: what you type stays on the top line, fuzzy-filtered results
 underneath with the matched characters in bold. One Rust binary, no runtime dependency
@@ -57,7 +57,8 @@ Commands act on the pane, tab and workspace you came from, never on the palette 
 
 ## What is in the picker
 
-**Your own commands** first, prefixed `User:`.
+**Your own commands** first, prefixed `User:`, then **your own prompts**, prefixed `Prompt:`,
+each in the order of your config file.
 
 **Built-in operations**, 38 of them: workspace switch/next/previous/new/rename/close, the
 same for tabs, pane rename/close/zoom/focus/split/swap/resize/move, worktree
@@ -118,8 +119,8 @@ Rules that apply to every entry:
 - **`argv[0]` is resolved against the herdr server's `PATH`**, not your shell's. A command
   that works in every pane can still fail here with `cannot run …` - name the binary by
   absolute path when that happens.
-- **A broken entry is skipped, never fatal.** It is counted in a header line at the top of
-  the picker; your other entries, the built-in commands and the plugin actions keep working.
+- **A broken entry is skipped, never fatal.** It is counted in a yellow warning line at the top
+  of the picker; your other entries, the built-in commands and the plugin actions keep working.
   Invalid TOML costs you your own entries and nothing more. Unknown keys are ignored.
 - **Entries only add rows.** They cannot rename, replace, reorder or hide a built-in command
   or a plugin action.
@@ -155,11 +156,14 @@ input box as a single paste, however many lines it has, and the agent gets the f
   sending it is your keystroke.
 - **A non-zero exit status is not a failure.** A failing `cargo test` is exactly what you want
   to paste; `git diff --exit-code` and `grep` exit non-zero with the output you asked for. The
-  status is mentioned in the header of the agent picker, and the output is sent anyway. Only
-  a command that produced nothing, with no `text` to fall back on, sends nothing.
+  status is mentioned in the header of the agent picker, and the output is sent anyway. A
+  command that produced nothing, with no `text` to fall back on, sends nothing and the
+  palette closes silently.
 - **The command runs inside the palette, under a timeout.** The popup is frozen meanwhile,
   so a command that hangs is killed at `timeout_ms` and its output dropped. `argv[0]` is
-  resolved against the palette's own `PATH`, that of the pane you came from.
+  resolved against the herdr server's `PATH`, as for `[[command]]`. A command that cannot
+  start or times out is shown as an error when there is no `text` to send, and as a header
+  warning otherwise.
 - **No shell**, as for `[[command]]`: no globbing, no `$VAR`, no pipes. Use a script.
 - **Big outputs are cut** a little under herdr's 1 MB request limit, with a visible mark at
   the end and a header warning.
