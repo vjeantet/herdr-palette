@@ -52,11 +52,12 @@ jobs:
       - name: shell syntax check
         run: |
           bash -n scripts/check-compat.sh
+          bash -n scripts/check-coverage.sh
           bash -n tests/stubs/herdr
           sh -n scripts/fetch-or-build.sh
 
       - name: shellcheck
-        run: shellcheck scripts/check-compat.sh scripts/fetch-or-build.sh tests/stubs/herdr
+        run: shellcheck scripts/check-compat.sh scripts/check-coverage.sh scripts/fetch-or-build.sh tests/stubs/herdr
 
       - name: actionlint
         run: actionlint .github/workflows/ci.yml .github/workflows/compat-check.yml .github/workflows/release.yml

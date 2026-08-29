@@ -17,6 +17,9 @@
 #   6. every "key" (default keybinding hint) in commands.json matches the
 #      default herdr's --default-config template records for its
 #      "keys_action" field, where the template lists that field.
+#
+# The reverse direction — that the catalog exposes every herdr key action it
+# reasonably can — is scripts/check-coverage.sh, not this script.
 # It also checks that every literal "--flag" argument in commands.json
 # actually appears in that subcommand's help output, without duplicating the
 # flag list in this script — the flags are extracted from commands.json.

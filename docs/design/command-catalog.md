@@ -89,6 +89,10 @@ This design's implementation uses the following files:
   through environment variables.
 - `scripts/check-compat.sh`: validates the catalog schema, compares the API protocol, and
   checks that the herdr subcommands referenced in the catalog are available.
+- `keys-coverage.json`: lists, with a reason, every herdr key action the catalog deliberately
+  does not expose. Development-time only; the palette never reads it.
+- `scripts/check-coverage.sh`: checks that every key action herdr declares is either exposed by
+  the catalog or listed there.
 - `README.md`: documents, for users, the available commands, requirements, installation, and
   what is out of scope.
 
@@ -640,13 +644,47 @@ following:
    appear as one of the command's `literal` arguments; a positional count/name match alone is
    not accepted as standing in for a missing required option.
 
+6. For every command that declares a `key` hint, compares it against what
+   `herdr --default-config` records for that command's `keys_action`, where the template
+   lists that field.
+
 It also checks that specific flags exist. Rather than duplicating the flag list in the shell
 script, it extracts the `--`-prefixed values from each command's `literal` entries and checks
 that each one exactly matches a flag the subcommand's help declares (not merely appears as a
 substring of the help text — e.g. a catalog `--focus` must not pass just because the help
 declares `--focused`).
 
-GitHub Actions installs the latest herdr and runs this weekly. `actions/checkout` is pinned to
+### Coverage: the other direction
+
+Every check above runs from the catalog toward herdr, so none of them would notice a herdr
+release adding a key action this palette ought to expose. `scripts/check-coverage.sh` runs the
+other way, against the goal stated in "Goals": expose herdr's built-in keybindings wherever the
+public CLI can achieve the same effect safely. Every key action in the `[keys]` section of
+`herdr --default-config` must be either exposed by `commands.json` (matched on `keys_action`)
+or classified in `keys-coverage.json` with one of four reasons:
+
+| reason | meaning |
+|---|---|
+| `no-cli` | no public herdr CLI achieves the same effect (client-side surfaces, and orderings that live only in the client) |
+| `by-design` | excluded by "Out of scope" above |
+| `redundant` | another catalog command already does it |
+| `not-an-action` | a key definition rather than an operation (`prefix`, `remote_image_paste`) |
+
+The script also rejects a coverage entry whose action the catalog does exercise (a stale
+exclusion), an unknown reason, and a duplicate entry.
+
+Two limits, both deliberate. The reference list is the `[keys]` section of the
+`--default-config` template, which herdr writes by hand in `src/main.rs` rather than generating
+from its `KeysConfig` struct: measured against 0.8.2 it omits `copy_mode` and the four
+`swap_pane_*`. An action the template also omits therefore stays invisible to this check, and a
+classified action the template does not list is accepted rather than reported as stale. This is
+a ratchet, not a proof — `KeysConfig` in herdr's `src/config/model.rs` is the complete list, and
+re-reading it by hand belongs to a herdr upgrade. The palette's own `expected_herdr_protocol`
+does not help here either: it tracks the socket API, not the config file, so a new keybinding
+need not move it.
+
+GitHub Actions installs the latest herdr and runs both scripts weekly, unconditionally, so one
+failing does not hide the other's result. `actions/checkout` is pinned to
 a commit SHA, and permissions are limited to `contents: read` and `issues: write`. `herdr`
 itself is installed unpinned (checking compatibility with the latest release is the point of
 this job); `check-jsonschema` is pinned to the version validated locally. On failure, the

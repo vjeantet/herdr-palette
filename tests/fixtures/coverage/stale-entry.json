@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "comment": "Every herdr key action that commands.json deliberately does not expose, with the reason. scripts/check-compat.sh (check 7) requires each action herdr's [keys] template lists to be either covered by commands.json or classified here, so a herdr release that adds an action turns the check red instead of silently widening the gap. Reasons: no-cli (no public herdr CLI achieves the same effect), by-design (excluded by docs/design/command-catalog.md), redundant (another catalog command already does it), not-an-action (a key definition, not an operation). An entry the template does not list is tolerated: the template is hand-written in herdr's src/main.rs and omits real fields (copy_mode, swap_pane_*).",
+  "uncovered": [
+    {
+      "keys_action": "prefix",
+      "reason": "not-an-action",
+      "note": "Defines the prefix key itself."
+    },
+    {
+      "keys_action": "remote_image_paste",
+      "reason": "not-an-action",
+      "note": "Raw local-client key for pasting a clipboard image into a remote session."
+    },
+    {
+      "keys_action": "help",
+      "reason": "no-cli",
+      "note": "Opens the client keybinding help overlay."
+    },
+    {
+      "keys_action": "settings",
+      "reason": "no-cli",
+      "note": "Opens the client settings surface."
+    },
+    {
+      "keys_action": "goto",
+      "reason": "no-cli",
+      "note": "Opens the session navigator, a client-side surface."
+    },
+    {
+      "keys_action": "detach",
+      "reason": "no-cli",
+      "note": "Detaches this client; the CLI can stop a server, not detach a running client."
+    },
+    {
+      "keys_action": "resize_mode",
+      "reason": "no-cli",
+      "note": "Enters a client input mode; pane resize itself is covered by pane.resize.*."
+    },
+    {
+      "keys_action": "toggle_sidebar",
+      "reason": "no-cli",
+      "note": "Client layout toggle."
+    },
+    {
+      "keys_action": "edit_scrollback",
+      "reason": "no-cli",
+      "note": "Opens the pane scrollback in $EDITOR from the client."
+    },
+    {
+      "keys_action": "copy_mode",
+      "reason": "no-cli",
+      "note": "Enters keyboard copy mode in the client."
+    },
+    {
+      "keys_action": "open_notification_target",
+      "reason": "no-cli",
+      "note": "notification show posts a notification; nothing focuses the visible one."
+    },
+    {
+      "keys_action": "navigate_workspace_up",
+      "reason": "no-cli",
+      "note": "Movement inside navigate mode, a client surface."
+    },
+    {
+      "keys_action": "navigate_workspace_down",
+      "reason": "no-cli",
+      "note": "Movement inside navigate mode, a client surface."
+    },
+    {
+      "keys_action": "navigate_pane_left",
+      "reason": "no-cli",
+      "note": "Movement inside navigate mode, a client surface."
+    },
+    {
+      "keys_action": "navigate_pane_down",
+      "reason": "no-cli",
+      "note": "Movement inside navigate mode, a client surface."
+    },
+    {
+      "keys_action": "navigate_pane_up",
+      "reason": "no-cli",
+      "note": "Movement inside navigate mode, a client surface."
+    },
+    {
+      "keys_action": "navigate_pane_right",
+      "reason": "no-cli",
+      "note": "Movement inside navigate mode, a client surface."
+    },
+    {
+      "keys_action": "cycle_pane_next",
+      "reason": "no-cli",
+      "note": "pane focus only accepts --direction left|right|up|down, never a cycle order."
+    },
+    {
+      "keys_action": "cycle_pane_previous",
+      "reason": "no-cli",
+      "note": "pane focus only accepts --direction left|right|up|down, never a cycle order."
+    },
+    {
+      "keys_action": "last_pane",
+      "reason": "no-cli",
+      "note": "The last-focused pane is client state; no list result exposes it."
+    },
+    {
+      "keys_action": "move_tab_previous",
+      "reason": "no-cli",
+      "note": "No tab move subcommand; tab has list/create/get/focus/rename/close only."
+    },
+    {
+      "keys_action": "move_tab_next",
+      "reason": "no-cli",
+      "note": "No tab move subcommand; tab has list/create/get/focus/rename/close only."
+    },
+    {
+      "keys_action": "previous_agent",
+      "reason": "no-cli",
+      "note": "agent focus takes a target, but next/previous cycle the agent panel order (ui::agent_panel_entries, sorted per the client's ui.agent_panel_sort and live agent state). agent list cannot reproduce it, so a computed neighbor would not be the one the user sees."
+    },
+    {
+      "keys_action": "next_agent",
+      "reason": "no-cli",
+      "note": "agent focus takes a target, but next/previous cycle the agent panel order (ui::agent_panel_entries, sorted per the client's ui.agent_panel_sort and live agent state). agent list cannot reproduce it, so a computed neighbor would not be the one the user sees."
+    },
+    {
+      "keys_action": "new_worktree",
+      "reason": "by-design",
+      "note": "Worktree operations create or delete working directories and need their own confirmation handling; see Out of scope."
+    },
+    {
+      "keys_action": "open_worktree",
+      "reason": "by-design",
+      "note": "Worktree operations create or delete working directories and need their own confirmation handling; see Out of scope."
+    },
+    {
+      "keys_action": "remove_worktree",
+      "reason": "by-design",
+      "note": "Worktree operations create or delete working directories and need their own confirmation handling; see Out of scope."
+    },
+    {
+      "keys_action": "switch_workspace",
+      "reason": "redundant",
+      "note": "Indexed variant of workspace_picker, already exposed as workspace.switch."
+    },
+    {
+      "keys_action": "new_tab",
+      "reason": "no-cli",
+      "note": "Fixture: stale entry, the catalog exposes new_tab."
+    }
+  ]
+}

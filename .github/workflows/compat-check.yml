@@ -1,8 +1,9 @@
 name: herdr compatibility check
 
-# Runs scripts/check-compat.sh against the latest herdr release, so a herdr
-# CLI change that breaks commands.json is caught even when nobody is
-# actively working on this repo. See docs/design/command-catalog.md,
+# Runs scripts/check-compat.sh and scripts/check-coverage.sh against the
+# latest herdr release, so a herdr CLI change that breaks commands.json — or
+# a new herdr key action nobody has classified — is caught even when nobody
+# is actively working on this repo. See docs/design/command-catalog.md,
 # section "Compatibility checks".
 on:
   schedule:
@@ -37,16 +38,17 @@ jobs:
         # check-jsonschema release change can't itself flip this job red.
         run: pipx install check-jsonschema==0.38.0
 
-      - name: Run compatibility check
+      - name: Run compatibility and coverage checks
         id: check
+        # Both run unconditionally, so one failure never hides the other's
+        # result in the issue body.
         run: |
-          set -o pipefail
-          if bash scripts/check-compat.sh 2>&1 | tee result.txt; then
-            echo "exit_code=0" >> "$GITHUB_OUTPUT"
-          else
-            echo "exit_code=1" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
+          rc=0
+          bash scripts/check-compat.sh >compat.txt 2>&1 || rc=1
+          bash scripts/check-coverage.sh >coverage.txt 2>&1 || rc=1
+          cat compat.txt coverage.txt | tee result.txt
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
 
       - name: Open or update issue on failure
         # always(): the previous step intentionally fails (exit 1) so the
