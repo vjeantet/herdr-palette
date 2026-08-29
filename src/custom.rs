@@ -1,5 +1,7 @@
 //! The user's own palette entries, read from
-//! `$HERDR_PLUGIN_CONFIG_DIR/config.toml`.
+//! `$HERDR_PLUGIN_CONFIG_DIR/config.toml`: `[[command]]` tables (this module)
+//! and `[[prompt]]` tables (validated in `prompt.rs`). One file, one read, one
+//! parse, one warning line for both.
 //!
 //! Strictly additive: these rows are appended to the picker, never replace or
 //! hide a catalog command or a plugin action. Nothing here is fatal — a file
@@ -13,6 +15,8 @@
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
+
+use crate::prompt::{self, UserPrompt};
 
 /// Where the command runs. Passed verbatim to `plugin pane open --placement`,
 /// which overrides the manifest's own placement for the `runner` entrypoint
@@ -70,6 +74,7 @@ pub struct UserCommand {
 #[derive(Debug, Default)]
 pub struct UserCatalog {
     pub commands: Vec<UserCommand>,
+    pub prompts: Vec<UserPrompt>,
     /// Empty means nothing to report. Otherwise a single line for the picker
     /// header, which takes precedence over the protocol warning.
     pub warning: String,
@@ -93,8 +98,8 @@ pub fn load() -> UserCatalog {
         // An absent file is the normal case: most users declare nothing.
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => UserCatalog::default(),
         Err(err) => UserCatalog {
-            commands: Vec::new(),
             warning: format!("warning: cannot read {}: {err}", path.display()),
+            ..UserCatalog::default()
         },
     }
 }
@@ -124,43 +129,71 @@ pub(crate) fn parse(text: &str) -> UserCatalog {
             let detail = err.to_string();
             let first = detail.lines().next().unwrap_or("parse error").to_string();
             return UserCatalog {
-                commands: Vec::new(),
                 warning: format!("warning: config.toml is not valid TOML: {first}"),
+                ..UserCatalog::default()
             };
         }
     };
-    let Some(entries) = table.get("command").and_then(toml::Value::as_array) else {
-        // No [[command]] at all: a config file holding only future settings.
-        return UserCatalog::default();
+    // Either table may be absent: a config file holding only future settings,
+    // or only the other kind of entry.
+    let entries = |name: &str| {
+        table
+            .get(name)
+            .and_then(toml::Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
     };
 
     let mut commands: Vec<UserCommand> = Vec::new();
+    let mut prompts: Vec<UserPrompt> = Vec::new();
     let mut skipped: Vec<String> = Vec::new();
-    for (index, entry) in entries.iter().enumerate() {
-        // The id is read off the raw table first so a rejection can name the
-        // entry even when the typed deserialization is what failed.
-        let named = entry
-            .get("id")
-            .and_then(toml::Value::as_str)
-            .map(display_name)
-            .unwrap_or_else(|| format!("#{}", index + 1));
+    for (index, entry) in entries("command").iter().enumerate() {
         match parse_entry(entry, &commands) {
             Ok(command) => commands.push(command),
-            Err(reason) => skipped.push(format!("{named} ({reason})")),
+            Err(reason) => skipped.push(format!("{} ({reason})", entry_name(entry, index, ""))),
+        }
+    }
+    for (index, entry) in entries("prompt").iter().enumerate() {
+        match prompt::parse_entry(entry, &prompts) {
+            Ok(prompt) => prompts.push(prompt),
+            Err(reason) => skipped.push(format!(
+                "{} ({reason})",
+                entry_name(entry, index, "prompt ")
+            )),
         }
     }
 
     let warning = if skipped.is_empty() {
         String::new()
     } else {
-        let plural = if skipped.len() == 1 { "" } else { "s" };
+        let noun = if skipped.len() == 1 {
+            "entry"
+        } else {
+            "entries"
+        };
         format!(
-            "warning: {} user command{plural} skipped: {}",
+            "warning: {} user {noun} skipped: {}",
             skipped.len(),
             skipped.join(", ")
         )
     };
-    UserCatalog { commands, warning }
+    UserCatalog {
+        commands,
+        prompts,
+        warning,
+    }
+}
+
+/// How a rejected entry is named in the warning: its id, read off the raw
+/// table before any validation so a typed-deserialization failure can still
+/// name it; else its 1-based position in its own table, prefixed so a
+/// nameless prompt is not mistaken for a nameless command.
+fn entry_name(entry: &toml::Value, index: usize, position_prefix: &str) -> String {
+    entry
+        .get("id")
+        .and_then(toml::Value::as_str)
+        .map(display_name)
+        .unwrap_or_else(|| format!("{position_prefix}#{}", index + 1))
 }
 
 /// An id as the user wrote it, made safe to name in the warning. It is read
@@ -187,31 +220,11 @@ fn parse_entry(entry: &toml::Value, accepted: &[UserCommand]) -> Result<UserComm
         .try_into()
         .map_err(|_| "invalid field types")?;
 
-    let id = raw.id.unwrap_or_default();
-    if id.is_empty() {
-        return Err("missing id");
-    }
-    // The same shape catalog ids are held to. It keeps `user:<id>` free of
-    // tabs and colons, so the row key stays unambiguous against `plugin:`.
-    if !id
-        .chars()
-        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '.' | '-' | '_'))
-    {
-        return Err("invalid id");
-    }
+    let id = validate_id(raw.id)?;
     if accepted.iter().any(|command| command.id == id) {
         return Err("duplicate id");
     }
-
-    let title = raw.title.unwrap_or_default();
-    if title.is_empty() {
-        return Err("missing title");
-    }
-    // Rows are rendered — and dumped by the headless driver — as tab-separated
-    // fields on one line.
-    if title.contains(['\t', '\n', '\r', '\0']) {
-        return Err("title spans lines");
-    }
+    let title = validate_title(raw.title)?;
 
     let argv = raw.argv.unwrap_or_default();
     if argv.is_empty() || argv[0].is_empty() {
@@ -223,28 +236,7 @@ fn parse_entry(entry: &toml::Value, accepted: &[UserCommand]) -> Result<UserComm
         Some(text) => Placement::parse(text).ok_or("unknown placement")?,
     };
 
-    // A relative cwd would be checked here, in the popup process, and then
-    // resolved somewhere else entirely: herdr hands `--cwd` to a bare
-    // `PathBuf::from` (0.8.2, `api/plugins/panes.rs`, `plugin_pane_cwd`) and
-    // spawns the pane from the server process, whose own working directory has
-    // nothing to do with this one. Only an absolute path names the same
-    // directory on both sides.
-    let cwd = match raw.cwd.filter(|cwd| !cwd.is_empty()) {
-        None => None,
-        Some(cwd) => {
-            let path = Path::new(&cwd);
-            if !path.is_absolute() {
-                return Err("cwd is not absolute");
-            }
-            // Rejected at load rather than at launch, where the alternatives
-            // are both worse: silently running somewhere else, or failing on a
-            // row the picker had shown as fine.
-            if !path.is_dir() {
-                return Err("cwd is not a directory");
-            }
-            Some(cwd)
-        }
-    };
+    let cwd = validate_cwd(raw.cwd)?;
 
     let input = match raw.input {
         None => None,
@@ -269,6 +261,61 @@ fn parse_entry(entry: &toml::Value, accepted: &[UserCommand]) -> Result<UserComm
         cwd,
         input,
     })
+}
+
+/// The same shape catalog ids are held to. It keeps `user:<id>` and
+/// `prompt:<id>` free of tabs and colons, so a row key stays unambiguous
+/// against `plugin:`.
+pub(crate) fn validate_id(id: Option<String>) -> Result<String, &'static str> {
+    let id = id.unwrap_or_default();
+    if id.is_empty() {
+        return Err("missing id");
+    }
+    if !id
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '.' | '-' | '_'))
+    {
+        return Err("invalid id");
+    }
+    Ok(id)
+}
+
+/// Rows are rendered — and dumped by the headless driver — as tab-separated
+/// fields on one line.
+pub(crate) fn validate_title(title: Option<String>) -> Result<String, &'static str> {
+    let title = title.unwrap_or_default();
+    if title.is_empty() {
+        return Err("missing title");
+    }
+    if title.contains(['\t', '\n', '\r', '\0']) {
+        return Err("title spans lines");
+    }
+    Ok(title)
+}
+
+/// An empty cwd reads as none. A declared one must be absolute: for a
+/// `[[command]]`, a relative path would be checked here, in the popup
+/// process, and then resolved somewhere else entirely — herdr hands `--cwd`
+/// to a bare `PathBuf::from` (0.8.2, `api/plugins/panes.rs`,
+/// `plugin_pane_cwd`) and spawns the pane from the server process, whose own
+/// working directory has nothing to do with this one. Only an absolute path
+/// names the same directory on both sides.
+///
+/// It must also exist, rejected at load rather than at launch, where the
+/// alternatives are both worse: silently running somewhere else, or failing
+/// on a row the picker had shown as fine.
+pub(crate) fn validate_cwd(cwd: Option<String>) -> Result<Option<String>, &'static str> {
+    let Some(cwd) = cwd.filter(|cwd| !cwd.is_empty()) else {
+        return Ok(None);
+    };
+    let path = Path::new(&cwd);
+    if !path.is_absolute() {
+        return Err("cwd is not absolute");
+    }
+    if !path.is_dir() {
+        return Err("cwd is not a directory");
+    }
+    Ok(Some(cwd))
 }
 
 #[cfg(test)]
@@ -389,7 +436,7 @@ argv = ["true"]
         assert_eq!(ids, ["fine"]);
         assert_eq!(
             catalog.warning,
-            "warning: 1 user command skipped: broken (missing argv)"
+            "warning: 1 user entry skipped: broken (missing argv)"
         );
     }
 
@@ -411,7 +458,7 @@ placement = "popup"
         );
         assert_eq!(
             catalog.warning,
-            "warning: 2 user commands skipped: Deploy (invalid id), again (unknown placement)"
+            "warning: 2 user entries skipped: Deploy (invalid id), again (unknown placement)"
         );
     }
 
@@ -434,7 +481,7 @@ argv = ["second"]
         assert_eq!(catalog.commands[0].title, "First");
         assert_eq!(
             catalog.warning,
-            "warning: 1 user command skipped: x (duplicate id)"
+            "warning: 1 user entry skipped: x (duplicate id)"
         );
     }
 
@@ -450,7 +497,7 @@ argv = "lazygit"
         );
         assert_eq!(
             catalog.warning,
-            "warning: 1 user command skipped: typo (invalid field types)"
+            "warning: 1 user entry skipped: typo (invalid field types)"
         );
     }
 
@@ -465,7 +512,7 @@ argv = ["true"]
         );
         assert_eq!(
             catalog.warning,
-            "warning: 1 user command skipped: #1 (missing id)"
+            "warning: 1 user entry skipped: #1 (missing id)"
         );
     }
 
@@ -523,7 +570,7 @@ cwd = """#,
         let catalog = parse("[[command]]\nid = \"a\\nb\"\ntitle = \"X\"\nargv = [\"true\"]\n");
         assert_eq!(
             catalog.warning,
-            "warning: 1 user command skipped: a?b (invalid id)"
+            "warning: 1 user entry skipped: a?b (invalid id)"
         );
         assert_eq!(catalog.warning.lines().count(), 1);
     }
@@ -537,7 +584,7 @@ cwd = """#,
         assert_eq!(
             catalog.warning,
             format!(
-                "warning: 1 user command skipped: {} (invalid id)",
+                "warning: 1 user entry skipped: {} (invalid id)",
                 "z".repeat(32) + "..."
             )
         );

@@ -1,11 +1,12 @@
-//! Builds the main picker's rows. User rows come first, in the order of the
-//! user's own file; then catalog rows, in catalog order (the file's order is
+//! Builds the main picker's rows. User rows come first — commands, then
+//! prompts, each in the order of the user's own file; then catalog rows, in catalog order (the file's order is
 //! the presentation order); then plugin action rows, sorted among themselves
 //! by label.
 
 use crate::catalog::Catalog;
 use crate::custom::UserCommand;
 use crate::keys::KeyHints;
+use crate::prompt::UserPrompt;
 use crate::ui::Row;
 
 /// The user's own entries, ahead of everything else: a handful of hand-written
@@ -27,6 +28,20 @@ pub fn user_rows(commands: &[UserCommand]) -> Vec<Row> {
         .collect()
 }
 
+/// The user's `[[prompt]]` entries, keyed `prompt:<id>` — a third namespace,
+/// disjoint from `user:` for the same reason that one is disjoint from
+/// `plugin:`.
+pub fn prompt_rows(prompts: &[UserPrompt]) -> Vec<Row> {
+    prompts
+        .iter()
+        .map(|prompt| Row {
+            id: format!("prompt:{}", prompt.id),
+            label: format!("Prompt: {}", prompt.title),
+            hint: String::new(),
+        })
+        .collect()
+}
+
 pub fn catalog_rows(catalog: &Catalog, hints: &KeyHints) -> Vec<Row> {
     catalog
         .commands
@@ -43,6 +58,19 @@ pub fn catalog_rows(catalog: &Catalog, hints: &KeyHints) -> Vec<Row> {
 mod tests {
     use super::*;
     use crate::custom::{Placement, UserCommand};
+    use crate::prompt::Capture;
+
+    fn prompt(id: &str, title: &str) -> UserPrompt {
+        UserPrompt {
+            id: id.to_string(),
+            title: title.to_string(),
+            text: Some("t".to_string()),
+            argv: Vec::new(),
+            capture: Capture::Stdout,
+            timeout_ms: 5_000,
+            cwd: None,
+        }
+    }
 
     fn command(id: &str, title: &str) -> UserCommand {
         UserCommand {
@@ -74,5 +102,25 @@ mod tests {
         let rows = user_rows(&[command("b", "Beta"), command("a", "Alpha")]);
         let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
         assert_eq!(ids, ["user:b", "user:a"]);
+    }
+
+    #[test]
+    fn a_prompt_row_is_keyed_in_its_own_namespace() {
+        let rows = prompt_rows(&[prompt("review", "Review the diff")]);
+        assert_eq!(rows[0].id, "prompt:review");
+    }
+
+    #[test]
+    fn a_prompt_row_label_is_prefixed_and_carries_no_hint() {
+        let rows = prompt_rows(&[prompt("review", "Review the diff")]);
+        assert_eq!(rows[0].label, "Prompt: Review the diff");
+        assert_eq!(rows[0].hint, "");
+    }
+
+    #[test]
+    fn prompt_rows_keep_the_order_of_the_user_file() {
+        let rows = prompt_rows(&[prompt("b", "Beta"), prompt("a", "Alpha")]);
+        let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
+        assert_eq!(ids, ["prompt:b", "prompt:a"]);
     }
 }

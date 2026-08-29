@@ -38,6 +38,10 @@ pub struct PickScreen {
     /// no hint (argument selectors and confirms leave it out).
     pub placeholder: String,
     pub rows: Vec<Row>,
+    /// The header is a warning, not a description: the TUI renders it so it
+    /// cannot be missed (bold, yellow, marked) instead of dimmed like the
+    /// rest of the chrome. Ignored by the headless driver.
+    pub warning: bool,
 }
 
 pub enum PickOutcome {

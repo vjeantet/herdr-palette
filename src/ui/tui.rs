@@ -15,7 +15,7 @@ use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher, Utf32Str};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Position;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::{Frame, Terminal};
@@ -135,10 +135,7 @@ fn render_pick(
         ),
         query_span,
     ]));
-    lines.push(Line::from(Span::styled(
-        rule_line(&screen.header, width),
-        Style::default().add_modifier(Modifier::DIM),
-    )));
+    lines.push(header_line(&screen.header, screen.warning, width));
 
     for (visible_index, entry) in filtered.iter().enumerate().skip(*offset).take(list_height) {
         let row = &screen.rows[entry.row];
@@ -205,16 +202,49 @@ const PREFIX: &str = "prefix+";
 /// channel: an empty header renders as a bare full-width rule, anything else
 /// is embedded in it (`── warning… ───`).
 fn rule_line(header: &str, width: usize) -> String {
-    let mut line = if header.is_empty() {
+    let (text, padding) = rule_parts(header, width);
+    text + &padding
+}
+
+/// The embedded header and the rule that pads it to `width`, kept apart so
+/// they can be styled differently.
+fn rule_parts(header: &str, width: usize) -> (String, String) {
+    let text = if header.is_empty() {
         String::new()
     } else {
         format!("── {header} ")
     };
-    let shown = line.chars().count();
-    if width > shown {
-        line.push_str(&"─".repeat(width - shown));
+    let shown = text.chars().count();
+    let padding = if width > shown {
+        "─".repeat(width - shown)
+    } else {
+        String::new()
+    };
+    (text, padding)
+}
+
+/// Marks a header rendered as a warning. U+26A0 without the emoji variation
+/// selector, so most terminals keep it to one cell.
+const WARNING_MARK: &str = "⚠ ";
+
+/// A description is chrome and stays dim; a warning is the one thing on the
+/// screen the user must not miss, so it gets bold and the terminal's own
+/// yellow — a palette colour, not an RGB one, so the theme decides its shade.
+fn header_line(header: &str, warning: bool, width: usize) -> Line<'static> {
+    let dim = Style::default().add_modifier(Modifier::DIM);
+    if !warning || header.is_empty() {
+        return Line::from(Span::styled(rule_line(header, width), dim));
     }
-    line
+    let (text, padding) = rule_parts(&format!("{WARNING_MARK}{header}"), width);
+    Line::from(vec![
+        Span::styled(
+            text,
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(padding, dim),
+    ])
 }
 
 impl Ui for TuiUi {

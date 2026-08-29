@@ -4,13 +4,16 @@ mod custom;
 mod exec;
 mod fatal;
 mod herdr;
+mod ipc;
 mod keys;
 mod launch;
 mod open;
 mod origin;
+mod prompt;
 mod resolve;
 mod rows;
 mod runner;
+mod send;
 mod ui;
 
 use std::process::ExitCode;
@@ -81,14 +84,18 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
     };
     let hints = keys::KeyHints::load();
     let mut rows = rows::user_rows(&user.commands);
+    rows.extend(rows::prompt_rows(&user.prompts));
     rows.extend(rows::catalog_rows(&catalog, &hints));
     rows.extend(actions::plugin_rows(&herdr, &hints));
 
+    // The main picker's header is only ever a warning (user file, protocol).
+    let warning = !header.is_empty();
     let picked = ui.pick(&PickScreen {
         header,
         prompt: String::new(),
         placeholder: "type to search commands".to_string(),
         rows,
+        warning,
     })?;
     let selected_id = match picked {
         PickOutcome::Selected(id) => id,
@@ -106,6 +113,20 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
                 Fatal::new("command-palette: internal error: selected user command not found")
             })?;
         launch::run(command, &origin, &herdr, ui)?;
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    // A prompt row drops a text into an agent's input box, chosen on the
+    // spot; nothing is submitted and no pane is opened.
+    if let Some(id) = selected_id.strip_prefix("prompt:") {
+        let prompt = user
+            .prompts
+            .iter()
+            .find(|prompt| prompt.id == id)
+            .ok_or_else(|| {
+                Fatal::new("command-palette: internal error: selected user prompt not found")
+            })?;
+        send::run(prompt, &origin, &herdr, ui)?;
         return Ok(ExitCode::SUCCESS);
     }
 
@@ -144,6 +165,7 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
             prompt: "confirm > ".to_string(),
             placeholder: String::new(),
             rows: vec![Row::plain("No"), Row::plain("Yes")],
+            warning: false,
         })?;
         match choice {
             PickOutcome::Selected(answer) if answer == "Yes" => {}

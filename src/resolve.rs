@@ -91,6 +91,7 @@ pub fn resolve_args(
                     prompt: prompt.clone(),
                     placeholder: String::new(),
                     rows,
+                    warning: false,
                 })?;
                 match picked {
                     PickOutcome::Selected(id) => args.push(id),
@@ -269,7 +270,7 @@ fn neighbor_from_json(
 /// on ANY candidate (checked before exclusion) are fatal; herdr-supplied
 /// labels get their `\n`/`\r`/`\t` replaced by spaces before display (a
 /// label is herdr-supplied, not catalog-controlled).
-fn selector_rows(
+pub(crate) fn selector_rows(
     herdr: &HerdrClient,
     selector: Selector,
     exclude: &str,

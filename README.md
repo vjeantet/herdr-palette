@@ -121,6 +121,48 @@ Rules that apply to every entry:
 - **Entries only add rows.** They cannot rename, replace, reorder or hide a built-in command
   or a plugin action.
 
+## Your own prompts
+
+A `[[prompt]]` entry drops a text into an agent's input box **without submitting it**, then
+focuses that agent. You read it over and press Enter yourself. The text is fixed, produced by
+a command, or both:
+
+```toml
+[[prompt]]
+id      = "review"
+title   = "Review the staged diff"          # shown as "Prompt: Review the staged diff"
+text    = "Review this diff and flag anything risky:"
+argv    = ["git", "diff", "--staged"]       # its output goes under the text, one array element per argument
+capture = "stdout"                          # stdout (default) | both (stdout, then stderr)
+timeout_ms = 5000                           # default 5000, at most 60000
+cwd     = "/home/me/project"                # absolute, and must exist; default: the pane you came from
+
+[[prompt]]
+id    = "explain"
+title = "Explain the last test failure"
+argv  = ["cargo", "test"]
+capture = "both"
+```
+
+Picking one runs `argv` (if any), then asks which agent to send to - every agent herdr knows,
+the one in the pane you came from listed first and marked. The text lands in that agent's
+input box as a single paste, however many lines it has, and the agent gets the focus.
+
+- **Nothing is submitted.** The text is added to whatever the agent already had in its box;
+  sending it is your keystroke.
+- **A non-zero exit status is not a failure.** A failing `cargo test` is exactly what you want
+  to paste; `git diff --exit-code` and `grep` exit non-zero with the output you asked for. The
+  status is mentioned in the header of the agent picker, and the output is sent anyway. Only
+  a command that produced nothing, with no `text` to fall back on, sends nothing.
+- **The command runs inside the palette, under a timeout.** The popup is frozen meanwhile,
+  so a command that hangs is killed at `timeout_ms` and its output dropped. `argv[0]` is
+  resolved against the palette's own `PATH`, that of the pane you came from.
+- **No shell**, as for `[[command]]`: no globbing, no `$VAR`, no pipes. Use a script.
+- **Big outputs are cut** a little under herdr's 1 MB request limit, with a visible mark at
+  the end and a header warning.
+- A broken entry is skipped and counted in the same header line as a broken `[[command]]`;
+  `id`s are unique per table, so a prompt and a command may share one.
+
 ## Scope
 
 This palette covers what herdr's public CLI can do. The design document lists the
