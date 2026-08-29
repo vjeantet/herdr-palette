@@ -45,6 +45,16 @@ fn main() -> ExitCode {
                 ExitCode::from(1)
             }
         },
+        // Internal: the detached process a plugin row hands its action to,
+        // so the palette (and its popup) can be gone when the action runs.
+        // Not in the usage line — nothing outside this binary calls it.
+        Some("dispatch") => match args.next().and_then(|qid| qid.into_string().ok()) {
+            Some(qid) => actions::dispatch(&qid, &herdr::HerdrClient::from_env()),
+            None => {
+                eprintln!("usage: herdr-palette dispatch <plugin_id.action_id>");
+                ExitCode::from(2)
+            }
+        },
         _ => {
             eprintln!("usage: herdr-palette <open|ui|run>");
             ExitCode::from(2)
@@ -132,9 +142,12 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
 
     // A plugin row dispatches straight to herdr's plugin runner. None of the
     // catalog machinery below (arguments, confirmation, argv assembly)
-    // applies to it: a plugin action takes no arguments from us.
+    // applies to it: a plugin action takes no arguments from us. The
+    // dispatch is detached and the palette exits at once: herdr allows one
+    // popup at a time, and an action that opens its own could not run while
+    // this one was still up (see `actions::spawn_dispatch`).
     if let Some(qid) = selected_id.strip_prefix("plugin:") {
-        actions::run_plugin_action(qid, &herdr)?;
+        actions::spawn_dispatch(qid)?;
         return Ok(ExitCode::SUCCESS);
     }
 

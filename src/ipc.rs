@@ -128,6 +128,19 @@ pub fn send_input(pane_id: &str, text: &str) -> Result<(), String> {
     }
 }
 
+/// Closes the popup that is open — this palette itself, when called from
+/// the detached dispatch of a plugin action (`actions::dispatch`). No CLI
+/// subcommand exposes `popup.close`; the socket is the only way. The
+/// `popup_not_open` refusal comes back as an error like any other, for the
+/// caller to ignore.
+pub fn popup_close() -> Result<(), String> {
+    let line = call("popup.close", serde_json::json!({}))?;
+    match error_of(&line) {
+        Some(message) => Err(message),
+        None => Ok(()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

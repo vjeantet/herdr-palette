@@ -414,6 +414,15 @@ if [ "${1:-} ${2:-} ${3:-}" = "plugin log list" ]; then
   exit 0
 fi
 
+# `notification show`: how a detached plugin-action dispatch reports a
+# failure, the popup being gone by then. Recorded with its full argv so a
+# test can read the title and body back.
+if [ "${1:-} ${2:-}" = "notification show" ]; then
+  record_call "$@"
+  printf '%s\n' '{"result":{}}'
+  exit 0
+fi
+
 pair="${1:-} ${2:-}"
 case "$pair" in
   "workspace focus")

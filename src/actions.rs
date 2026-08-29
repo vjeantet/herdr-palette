@@ -5,6 +5,8 @@
 //! Adapted from Jan Tvrdík's jt.command-palette (MIT,
 //! https://github.com/JanTvrdik/herdr-command-palette).
 
+use std::io;
+use std::process::{Command, ExitCode, Stdio};
 use std::time::Duration;
 
 use serde_json::Value;
@@ -112,6 +114,88 @@ fn plugin_display_name(plugin_id: &str) -> String {
         Some(first) => first.to_uppercase().chain(chars).collect(),
         None => String::new(),
     }
+}
+
+/// Hand a plugin action to a detached copy of this binary and return at
+/// once, so the palette exits — and its popup with it — before the action
+/// runs.
+///
+/// herdr has a single popup slot (`state.popup_pane`, `src/app/popup.rs`)
+/// and refuses to open another popup while one is up. The palette *is* that
+/// popup: an action opening a popup of its own (the plugin manager, for one)
+/// failed with `popup already open` for as long as the palette dispatched
+/// it from inside and waited for the outcome.
+///
+/// The child has to outlive the palette. Closing a popup makes herdr signal
+/// every process of the popup's *session* (`shutdown_pane_processes`,
+/// `platform::session_processes`), so a new process group would not do:
+/// the child calls `setsid` before exec. Its stdio goes to /dev/null, there
+/// is nobody left to read it; failures are reported by `dispatch`.
+pub fn spawn_dispatch(qid: &str) -> Result<(), Fatal> {
+    let cannot =
+        |detail: String| Fatal(format!("command-palette: cannot dispatch {qid}: {detail}"));
+    let exe = std::env::current_exe().map_err(|e| cannot(e.to_string()))?;
+    let mut command = Command::new(exe);
+    command
+        .arg("dispatch")
+        .arg(qid)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        // SAFETY: setsid is async-signal-safe and touches nothing the parent
+        // shares with the child.
+        unsafe {
+            command.pre_exec(|| {
+                if libc::setsid() == -1 {
+                    Err(io::Error::last_os_error())
+                } else {
+                    Ok(())
+                }
+            });
+        }
+    }
+    command.spawn().map(drop).map_err(|e| cannot(e.to_string()))
+}
+
+/// The detached half of `spawn_dispatch`, run as `herdr-palette dispatch
+/// <qid>` with no terminal.
+///
+/// The popup slot is freed first, over the socket. The palette is on its
+/// way out anyway (its exit closes the popup through `PaneDied`); the
+/// explicit close only makes the order certain, so it is best effort:
+/// `popup_not_open` means the palette already went, and an unreachable
+/// socket leaves the action to race the popup's exit, as it always did.
+///
+/// A failure has no screen left to land on, so it goes through
+/// `herdr notification show`: first line as the title, the rest as the body.
+pub fn dispatch(qid: &str, herdr: &HerdrClient) -> ExitCode {
+    let _ = crate::ipc::popup_close();
+    match run_plugin_action(qid, herdr) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(Fatal(message)) => {
+            notify_failure(herdr, &message);
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn notify_failure(herdr: &HerdrClient, message: &str) {
+    let mut lines = message.lines();
+    let title = lines
+        .next()
+        .unwrap_or("command-palette: plugin action failed");
+    let body = lines.collect::<Vec<_>>().join("\n");
+    let body = body.trim();
+    let mut args = vec!["notification", "show", title];
+    if !body.is_empty() {
+        args.extend(["--body", body]);
+    }
+    // The notification is the last resort; nothing is left to report its
+    // own failure to.
+    let _ = herdr.raw(args);
 }
 
 /// Invoke one plugin action and wait for the dispatched run to reach a

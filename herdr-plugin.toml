@@ -1,6 +1,6 @@
 id = "vjeantet.palette"
 name = "Command Palette (built-ins + plugin actions)"
-version = "0.2.0"
+version = "0.2.1"
 min_herdr_version = "0.8.0"
 description = "Command palette for herdr: built-in operations (tab/workspace/pane) AND every action of every installed plugin, in one Sublime-Text-style picker. Origin tab/pane ids are captured server-side before the popup takes focus and forwarded via --env."
 platforms = ["macos", "linux"]

@@ -65,9 +65,12 @@ new/open/remove, agent focus/prompt/rename, config reload.
 
 **Plugin actions**, one row each as `Plugin: <title>  <plugin_id>.<action_id>` - the
 qualified id is part of the searchable text, so typing a plugin's name finds its actions.
-Picking one dispatches it and waits for the run to finish, so a failing action shows its
-error instead of vanishing with the popup. This palette's own actions and actions declared
-for another platform are not listed.
+Picking one closes the palette and dispatches the action from a detached process, which
+waits for the run to finish: a failing action shows up as a herdr notification instead of
+vanishing silently. (herdr allows one popup at a time and the palette is one, so an
+action that opens its own popup, the plugin manager for instance, could not run while
+the palette was still up.) This palette's own actions and actions declared for another
+platform are not listed.
 
 Each half stands alone: if `herdr plugin action list` fails, or no other plugin is
 installed, the rest still works.
