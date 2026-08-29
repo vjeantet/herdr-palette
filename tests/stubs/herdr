@@ -17,6 +17,13 @@
 # and a zero exit is further required to contain a genuine
 # "Usage: herdr <group> <sub>" line (which neither fallback shape prints).
 #
+# The `-h` help for the six subcommands the catalog gained on 2026-08-29
+# (worktree create/open/remove, pane move, agent prompt, agent rename) and
+# the `worktree` group list were NOT captured from a running herdr: they
+# were transcribed from the CLI sources (src/cli/{worktree,pane,agent}.rs of
+# the preview checkout, 2026-08-30) into the same shape as the captured
+# blocks. Their Options sections list every flag the parser accepts.
+#
 # Env vars:
 #   HERDR_STUB_PROTOCOL  — protocol number `api schema` reports (default 20)
 #   HERDR_STUB_VERSION   — version string `--version` reports (default 0.8.0)
@@ -109,8 +116,9 @@ EOF
 # group_help GROUP — prints that group's own command list, the shape real
 # herdr 0.8.0 prints (with exit 2) for an unrecognized subcommand within a
 # known group. Only the groups commands.json and this test suite actually
-# reference (workspace, tab, pane, agent, server) have verbatim-captured
-# text; is_known_group() below is scoped to exactly those.
+# reference (workspace, worktree, tab, pane, agent, server) have text
+# here (captured, except worktree — see the header); is_known_group() below
+# is scoped to exactly those.
 group_help() {
   case "$1" in
     workspace)
@@ -187,6 +195,15 @@ herdr agent commands:
   kinds: pi|claude|codex|gemini|cursor|devin|agy|cline|omp|mastracode|opencode|copilot|kimi|kiro|droid|amp|grok|hermes|kilo|qodercli|maki
 EOF
       ;;
+    worktree)
+      cat <<'EOF'
+herdr worktree commands:
+  herdr worktree list [--workspace ID | --cwd PATH]
+  herdr worktree create [--workspace ID | --cwd PATH] [--branch NAME] [--base REF] [--path PATH] [--label TEXT] [--focus] [--no-focus]
+  herdr worktree open [--workspace ID | --cwd PATH] (--path PATH | --branch NAME) [--label TEXT] [--focus] [--no-focus]
+  herdr worktree remove --workspace ID [--force]
+EOF
+      ;;
     server)
       cat <<'EOF'
 herdr server commands:
@@ -205,11 +222,11 @@ EOF
 # is_known_group GROUP — true for exactly the groups this stub has real
 # group_help() text for, i.e. the groups commands.json and this test suite
 # reference. herdr itself recognizes more groups (api, config, channel,
-# worktree, notification, session, integration, completion); they're not
-# reproduced here because nothing in this repo exercises them.
+# notification, session, integration, completion); they're not reproduced
+# here because nothing in this repo exercises them.
 is_known_group() {
   case "$1" in
-    workspace|tab|pane|agent|server) return 0 ;;
+    workspace|worktree|tab|pane|agent|server) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -488,6 +505,67 @@ Usage: herdr workspace list
 EOF
     exit 0
     ;;
+  "worktree create")
+    cat <<'EOF'
+Create a git worktree and open it as a workspace
+
+Usage: herdr worktree create [OPTIONS]
+
+Options:
+      --workspace <ID>
+
+      --cwd <PATH>
+
+      --branch <NAME>
+
+      --base <REF>
+
+      --path <PATH>
+
+      --label <TEXT>
+
+      --focus
+
+      --no-focus
+EOF
+    exit 0
+    ;;
+  "worktree open")
+    cat <<'EOF'
+Open an existing git worktree as a workspace
+
+Usage: herdr worktree open [OPTIONS]
+
+Options:
+      --workspace <ID>
+
+      --cwd <PATH>
+
+      --path <PATH>
+
+      --branch <NAME>
+
+      --label <TEXT>
+
+      --focus
+
+      --no-focus
+EOF
+    exit 0
+    ;;
+  "worktree remove")
+    cat <<'EOF'
+Remove the git worktree of a workspace
+
+Usage: herdr worktree remove [OPTIONS] --workspace <ID>
+
+Options:
+      --workspace <ID>
+
+      --force
+EOF
+    exit 0
+    ;;
   "tab focus")
     cat <<'EOF'
 Focus a tab
@@ -588,6 +666,41 @@ Usage: herdr pane close <pane_id>
 
 Arguments:
   <pane_id>
+EOF
+    exit 0
+    ;;
+  "pane move")
+    cat <<'EOF'
+Move a pane into a tab, a new tab, or a new workspace
+
+Usage: herdr pane move [OPTIONS] <PANE_ID>
+
+Arguments:
+  <PANE_ID>
+
+Options:
+      --tab <TAB_ID>
+
+      --split <DIRECTION>
+          [possible values: right, down]
+
+      --target-pane <ID>
+
+      --ratio <FLOAT>
+
+      --new-tab
+
+      --workspace <ID>
+
+      --label <TEXT>
+
+      --new-workspace
+
+      --tab-label <TEXT>
+
+      --focus
+
+      --no-focus
 EOF
     exit 0
     ;;
@@ -730,6 +843,42 @@ EOF
 List agents
 
 Usage: herdr agent list
+EOF
+    exit 0
+    ;;
+  "agent prompt")
+    cat <<'EOF'
+Submit a prompt to an agent
+
+Usage: herdr agent prompt [OPTIONS] <TARGET> <TEXT>
+
+Arguments:
+  <TARGET>
+
+  <TEXT>
+
+Options:
+      --wait
+
+      --until <STATUS>
+
+      --timeout <MS>
+EOF
+    exit 0
+    ;;
+  "agent rename")
+    cat <<'EOF'
+Rename an agent
+
+Usage: herdr agent rename [OPTIONS] <TARGET> [NAME]
+
+Arguments:
+  <TARGET>
+
+  [NAME]
+
+Options:
+      --clear
 EOF
     exit 0
     ;;

@@ -186,7 +186,10 @@ setup() {
   run "$(palette_bin)" ui
 
   [ "$status" -eq 0 ]
-  [ ! -f "$HERDR_STUB_CALLS" ]
+  # The workspace selector runs (and is recorded) before the confirm screen;
+  # only the removal itself must be absent.
+  [ "$(tail -n 1 "$HERDR_STUB_CALLS")" = "workspace list" ]
+  ! grep -q '^worktree remove' "$HERDR_STUB_CALLS"
 }
 
 @test "agent.prompt passes the selected agent before the typed text" {
