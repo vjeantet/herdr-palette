@@ -35,15 +35,21 @@ In `~/.config/herdr/config.toml`, then `herdr server reload-config`:
 
 ```toml
 [[keys.command]]
+key = "super+p" # ⌘+P on macOS
+type = "plugin_action"
+command = "vjeantet.palette.open"
+description = "Command palette"
+
+[[keys.command]]
 key = "prefix+p"
 type = "plugin_action"
 command = "vjeantet.palette.open"
 description = "Command palette"
 ```
 
-Drop the `prefix+` for an editor-style single chord. `ctrl+shift+p` requires a terminal that
-speaks the kitty keyboard protocol; on terminals that don't, it never fires - use
-`ctrl+alt+p` there.
+Drop `prefix+` for an editor-style single chord. `ctrl+shift+p` requires a terminal that
+speaks the kitty keyboard protocol (Ghostty, for instance); on terminals that don't, it
+never fires - use `ctrl+alt+p` there.
 
 ## Use it
 
