@@ -2,7 +2,7 @@
 
 - herdr's built-in operations - workspace, tab, pane, agent, config;
 - every action of every other installed plugin;
-- your own commands, and texts to drop into an agent's input box, declared in a config file.
+- your own commands, and prompts (text to drop into an agent's input box), declared in a config file.
 
 A Sublime-Text- or VSCode-style popup: what you type stays on the top line, fuzzy-filtered results
 underneath with the matched characters in bold. One Rust binary, no runtime dependency
