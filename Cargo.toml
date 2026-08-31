@@ -1,6 +1,6 @@
 [package]
 name = "herdr-palette"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "Command palette for herdr: built-in operations and every other plugin's actions, in one Sublime-Text-style picker"
 license = "MIT"
