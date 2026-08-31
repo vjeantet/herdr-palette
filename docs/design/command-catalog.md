@@ -62,6 +62,11 @@ This design achieves the following:
 > behind it, so a malformed entry is skipped and reported in the picker header instead of
 > being a hard error. See the README's "Your own commands".
 
+> **Amendment (2026-08-31) — last-used command.** The last exclusion below no longer describes
+> the implementation: the palette now remembers the row picked in the main picker and promotes
+> it to the top of the list on the next opening. The requirements this document pinned under
+> "Future work" were decided differently when the feature was built; see the amendment there.
+
 The initial version does not implement:
 
 - Loading a user-supplied JSON catalog, merging it with the bundled one, or overriding
@@ -74,7 +79,8 @@ The initial version does not implement:
 
 Worktree operations are excluded from the initial version because they create or delete
 working directories and need different confirmation handling than ordinary Tab, Workspace, and
-Pane operations. Requirements for recently run commands are pinned in "Future work".
+Pane operations. Requirements for recently run commands were pinned in "Future work"; the
+amendment there records what was actually built (2026-08-31).
 
 ## File layout
 
@@ -791,6 +797,19 @@ user-facing configuration feature.
 Add `Pane: Next` and `Pane: Previous` through a separately designed raw-socket execution path,
 or after herdr adds a public CLI wrapper for `pane.focus`. The socket version must define pane
 ordering and validate the same request/response framing that herdr plugins use.
+
+> **Amendment (2026-08-31) — implemented, with different decisions.** The feature shipped as
+> a depth-1 "last used" rule rather than the 10-entry MRU pinned below, and two of the pinned
+> requirements were deliberately reversed: the ID is saved **at selection**, not on a
+> successful run — a flow cancelled downstream (Esc on an input, No on a confirm) still
+> counts as the last command used; and exactly **one** ID is kept, as one line in
+> `$HERDR_PLUGIN_CONFIG_DIR/last-used` (`src/recent.rs`), with no separate storage design.
+> Concurrent sessions resolve by last write wins: losing a write only loses the memory of one
+> selection, and neither reading nor writing is ever fatal. What survives unchanged: only the
+> row ID is saved — never free-input values, selected target IDs, or the working directory;
+> an ID no longer matching any row is ignored when loaded; and promotion only changes the
+> initial order, the fuzzy matcher (nucleo, since the Rust rewrite — not fzf) reordering from
+> the first keystroke.
 
 Save up to 10 recently run commands so they're easier to find in the palette next time.
 

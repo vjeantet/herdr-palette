@@ -10,6 +10,7 @@ mod launch;
 mod open;
 mod origin;
 mod prompt;
+mod recent;
 mod resolve;
 mod rows;
 mod runner;
@@ -97,6 +98,9 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
     rows.extend(rows::prompt_rows(&user.prompts));
     rows.extend(rows::catalog_rows(&catalog, &hints));
     rows.extend(actions::plugin_rows(&herdr, &hints));
+    if let Some(last) = recent::load() {
+        rows::promote_last_used(&mut rows, &last);
+    }
 
     // The main picker's header is only ever a warning (user file, protocol).
     let warning = !header.is_empty();
@@ -111,6 +115,9 @@ fn ui_flow(ui: &mut dyn Ui) -> Result<ExitCode, Fatal> {
         PickOutcome::Selected(id) => id,
         PickOutcome::Cancelled => return Ok(ExitCode::SUCCESS),
     };
+    // Remembered at selection, deliberately: a flow cancelled downstream (Esc
+    // on an input, No on a confirm) still counts as the last command used.
+    recent::save(&selected_id);
 
     // A user row runs its own argv in a pane of its own; none of the catalog
     // machinery below applies to it either.

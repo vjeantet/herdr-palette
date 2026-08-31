@@ -83,10 +83,15 @@ pub struct UserCatalog {
 /// The directory herdr hands every plugin process (`HERDR_PLUGIN_CONFIG_DIR`).
 /// herdr injects it for panes as well as actions and refuses to let `--env`
 /// overwrite it, so there is no fallback search: no variable means no user
-/// catalog, silently.
-fn config_path() -> Option<PathBuf> {
+/// catalog and no last-used state, silently. The single copy of that rule —
+/// `recent.rs` joins its own filename onto this.
+pub(crate) fn config_dir() -> Option<PathBuf> {
     let dir = std::env::var_os("HERDR_PLUGIN_CONFIG_DIR").filter(|dir| !dir.is_empty())?;
-    Some(PathBuf::from(dir).join("config.toml"))
+    Some(PathBuf::from(dir))
+}
+
+fn config_path() -> Option<PathBuf> {
+    Some(config_dir()?.join("config.toml"))
 }
 
 pub fn load() -> UserCatalog {

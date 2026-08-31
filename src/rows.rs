@@ -1,7 +1,8 @@
 //! Builds the main picker's rows. User rows come first — commands, then
 //! prompts, each in the order of the user's own file; then catalog rows, in catalog order (the file's order is
 //! the presentation order); then plugin action rows, sorted among themselves
-//! by label.
+//! by label. One exception outranks all of that: `promote_last_used` moves
+//! the row picked last time to the very front, whichever half it came from.
 
 use crate::catalog::Catalog;
 use crate::custom::UserCommand;
@@ -9,9 +10,9 @@ use crate::keys::KeyHints;
 use crate::prompt::UserPrompt;
 use crate::ui::Row;
 
-/// The user's own entries, ahead of everything else: a handful of hand-written
-/// rows are what someone wants to see first on an empty query (the fuzzy
-/// matcher reorders from the first keystroke anyway).
+/// The user's own entries, ahead of everything except the last-used row: a
+/// handful of hand-written rows are what someone wants to see first on an
+/// empty query (the fuzzy matcher reorders from the first keystroke anyway).
 ///
 /// Keyed `user:<id>`, which no catalog id can collide with — ids are held to
 /// `^[a-z0-9._-]+$` on both sides, and that excludes the colon, exactly as it
@@ -40,6 +41,18 @@ pub fn prompt_rows(prompts: &[UserPrompt]) -> Vec<Row> {
             hint: String::new(),
         })
         .collect()
+}
+
+/// Moves the row picked last time to the front, ahead even of the user's own
+/// entries: the single most likely next pick on an empty query. Only the
+/// initial order changes — the fuzzy matcher reorders from the first
+/// keystroke, as it does for every other row. An id that no longer matches
+/// any row (a removed entry, an uninstalled plugin) is silently ignored.
+pub fn promote_last_used(rows: &mut Vec<Row>, id: &str) {
+    if let Some(position) = rows.iter().position(|row| row.id == id) {
+        let row = rows.remove(position);
+        rows.insert(0, row);
+    }
 }
 
 pub fn catalog_rows(catalog: &Catalog, hints: &KeyHints) -> Vec<Row> {
@@ -122,5 +135,37 @@ mod tests {
         let rows = prompt_rows(&[prompt("b", "Beta"), prompt("a", "Alpha")]);
         let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
         assert_eq!(ids, ["prompt:b", "prompt:a"]);
+    }
+
+    fn row(id: &str) -> Row {
+        Row {
+            id: id.to_string(),
+            label: id.to_string(),
+            hint: String::new(),
+        }
+    }
+
+    #[test]
+    fn the_last_used_row_moves_to_the_front_and_the_rest_keeps_its_order() {
+        let mut rows = vec![row("a"), row("b"), row("c")];
+        promote_last_used(&mut rows, "b");
+        let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
+        assert_eq!(ids, ["b", "a", "c"]);
+    }
+
+    #[test]
+    fn an_unknown_last_used_id_leaves_the_order_alone() {
+        let mut rows = vec![row("a"), row("b")];
+        promote_last_used(&mut rows, "gone");
+        let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
+        assert_eq!(ids, ["a", "b"]);
+    }
+
+    #[test]
+    fn promoting_the_row_already_in_front_changes_nothing() {
+        let mut rows = vec![row("a"), row("b")];
+        promote_last_used(&mut rows, "a");
+        let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
+        assert_eq!(ids, ["a", "b"]);
     }
 }

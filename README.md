@@ -64,7 +64,8 @@ Commands act on the pane, tab and workspace you came from, never on the palette 
 ## What is in the picker
 
 **Your own commands** first, prefixed `User:`, then **your own prompts**, prefixed `Prompt:`,
-each in the order of your config file.
+each in the order of your config file. (One exception: the last command you picked leads the
+whole list, whatever half it came from - see below.)
 
 **Built-in operations**, 38 of them: workspace switch/next/previous/new/rename/close, the
 same for tabs, pane rename/close/zoom/focus/split/swap/resize/move, worktree
@@ -81,6 +82,11 @@ platform are not listed.
 
 Each half stands alone: if `herdr plugin action list` fails, or no other plugin is
 installed, the rest still works.
+
+**The last command you picked leads the list** on the next opening, whatever half it came
+from - remembered the moment you pick it, even if you cancel a later step. Only the
+initial order changes: fuzzy matching reorders from the first keystroke as usual. The id
+is kept in `last-used`, next to the config file; delete it to forget.
 
 ## Your own commands
 
