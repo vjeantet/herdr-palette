@@ -33,6 +33,11 @@ const TEXT_BUDGET: usize = 1_000_000;
 const TRUNCATION_MARK: &str = "\n[output truncated by herdr-palette]";
 /// Suffix on the agent row hosting the pane the palette was opened from.
 const ORIGIN_SUFFIX: &str = " - this pane";
+/// How long after the child exits its pipes may take to drain. What it wrote
+/// is already in them — the child blocks on a full pipe, so at most one
+/// pipe's worth — and reads in well under a millisecond; the margin is for a
+/// loaded machine. Only paid when something else holds a pipe open.
+const EXIT_GRACE: Duration = Duration::from_millis(100);
 
 pub enum Sent {
     Done,
@@ -138,12 +143,19 @@ struct Captured {
     outcome: Outcome,
 }
 
-/// Runs `argv` with both streams piped and a hard deadline. `std::process`
-/// has no bounded wait, and no crate is worth adding for one: the child is
-/// polled every 10 ms, the same idiom as the dispatch poll in `actions.rs`.
-/// Each stream has its own reader thread — a full pipe would otherwise block
-/// the child — and the readers hand their bytes back over channels, so a
-/// grandchild keeping a pipe open cannot hang this side past the deadline.
+/// Runs `argv` with its captured streams piped and a hard deadline.
+/// `std::process` has no bounded wait, and no crate is worth adding for one:
+/// the child is polled every 10 ms, the same idiom as the dispatch poll in
+/// `actions.rs`. Each piped stream has its own reader thread — a full pipe
+/// would otherwise block the child — and the readers hand their bytes back
+/// over channels as they come.
+///
+/// Once the child has exited, its output is final, but EOF may never come:
+/// a background process it started (`git fetch` leaves
+/// `git credential-cache--daemon` behind) inherits the pipes and holds them
+/// open. So the readers get `EXIT_GRACE` to pass on what is already in the
+/// pipes, and what they have by then is the output. stderr is not piped at
+/// all unless it is captured, so there is nothing to wait for on it.
 fn capture(argv: &[String], cwd: Option<&str>, timeout: Duration, mode: Capture) -> Captured {
     let mut command = Command::new(&argv[0]);
     command
@@ -152,7 +164,11 @@ fn capture(argv: &[String], cwd: Option<&str>, timeout: Duration, mode: Capture)
         // wait on a keyboard it must never see.
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(if mode == Capture::Both {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        });
     if let Some(cwd) = cwd {
         command.current_dir(cwd);
     }
@@ -189,18 +205,21 @@ fn capture(argv: &[String], cwd: Option<&str>, timeout: Duration, mode: Capture)
         };
     };
 
-    let remaining = |now: Instant| deadline.saturating_duration_since(now);
+    // Until EOF, or until the grace runs out on a pipe something else holds.
+    let settled = Instant::now() + EXIT_GRACE;
     let collect = |rx: Option<mpsc::Receiver<Vec<u8>>>| {
-        rx.and_then(|rx| rx.recv_timeout(remaining(Instant::now())).ok())
+        let mut bytes = Vec::new();
+        if let Some(rx) = rx {
+            while let Ok(chunk) = rx.recv_timeout(settled.saturating_duration_since(Instant::now()))
+            {
+                bytes.extend(chunk);
+            }
+        }
+        bytes
     };
-    let (Some(out), Some(err)) = (collect(stdout), collect(stderr)) else {
-        return Captured {
-            output: String::new(),
-            outcome: Outcome::TimedOut,
-        };
-    };
+    let (out, err) = (collect(stdout), collect(stderr));
     let mut output = String::from_utf8_lossy(&out).into_owned();
-    if mode == Capture::Both && !err.is_empty() {
+    if !err.is_empty() {
         if !output.is_empty() && !output.ends_with('\n') {
             output.push('\n');
         }
@@ -215,9 +234,19 @@ fn capture(argv: &[String], cwd: Option<&str>, timeout: Duration, mode: Capture)
 fn drain<R: Read + Send + 'static>(mut stream: R) -> mpsc::Receiver<Vec<u8>> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        let _ = stream.read_to_end(&mut bytes);
-        let _ = tx.send(bytes);
+        let mut buf = [0; 64 * 1024];
+        loop {
+            match stream.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    if tx.send(buf[..n].to_vec()).is_err() {
+                        break;
+                    }
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(_) => break,
+            }
+        }
     });
     rx
 }
@@ -497,6 +526,38 @@ mod tests {
         assert_eq!(captured.outcome, Outcome::TimedOut);
         assert_eq!(captured.output, "");
         assert!(started.elapsed() < Duration::from_secs(4));
+    }
+
+    // `git fetch` can leave `git credential-cache--daemon` behind holding the
+    // pipes. The subshell's `sleep` inherits them and outlives the command.
+    #[test]
+    fn a_background_process_holding_stdout_does_not_hold_the_capture() {
+        let argv = [
+            "sh".to_string(),
+            "-c".to_string(),
+            "echo hello; (sleep 5 &)".to_string(),
+        ];
+        let started = Instant::now();
+        let captured = capture(&argv, None, Duration::from_secs(3), Capture::Stdout);
+        assert_eq!(captured.output, "hello\n");
+        assert_eq!(captured.outcome, Outcome::Exited(Some(0)));
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn a_background_process_holding_stderr_does_not_hold_the_capture() {
+        let argv = [
+            "sh".to_string(),
+            "-c".to_string(),
+            "echo hello; (sleep 5 >/dev/null &)".to_string(),
+        ];
+        for mode in [Capture::Stdout, Capture::Both] {
+            let started = Instant::now();
+            let captured = capture(&argv, None, Duration::from_secs(3), mode);
+            assert_eq!(captured.output, "hello\n");
+            assert_eq!(captured.outcome, Outcome::Exited(Some(0)));
+            assert!(started.elapsed() < Duration::from_secs(2));
+        }
     }
 
     #[test]
