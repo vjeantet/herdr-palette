@@ -409,6 +409,64 @@ TOML
   [[ "$output" != *"exited with status"* ]]
 }
 
+# in_terminal KEY — runs the runner as the session leader of a fresh
+# pseudo-terminal, the way herdr runs a pane's process, and types KEY once the
+# command has printed "ready". The terminal, not the test, turns KEY into a
+# signal for the foreground process group, so this is the only way to see
+# what a keypress in the pane does. Prints what the pane showed and exits with
+# the runner's status; a runner that died of a signal itself, which is what
+# closes the pane in herdr, exits 1 with "runner died of signal N".
+in_terminal() {
+  python3 - "$(palette_bin)" "$1" <<'PY'
+import os, pty, select, sys, time
+
+pid, fd = pty.fork()
+if pid == 0:
+    os.execv(sys.argv[1], [sys.argv[1], "run"])
+
+out, sent, deadline = b"", False, time.time() + 10
+while time.time() < deadline:
+    if not sent and b"ready" in out:
+        os.write(fd, sys.argv[2].encode())
+        sent = True
+    if not select.select([fd], [], [], 0.1)[0]:
+        continue
+    try:
+        chunk = os.read(fd, 1024)
+    except OSError:
+        break
+    if not chunk:
+        break
+    out += chunk
+
+if time.time() >= deadline:
+    os.kill(pid, 9)
+_, status = os.waitpid(pid, 0)
+sys.stdout.write(out.decode(errors="replace"))
+if os.WIFSIGNALED(status):
+    sys.exit(f"runner died of signal {os.WTERMSIG(status)}")
+sys.exit(os.WEXITSTATUS(status))
+PY
+}
+
+@test "Ctrl-C in the pane stops the command, not the runner" {
+  export PALETTE_RUN_ARGV='["sh","-c","echo ready; exec sleep 30"]'
+
+  run in_terminal $'\x03'
+
+  [ "$status" -eq 130 ]
+  [[ "$output" == *"[sh] killed by signal 2"* ]]
+}
+
+@test "Ctrl-\\ in the pane stops the command, not the runner" {
+  export PALETTE_RUN_ARGV='["sh","-c","echo ready; exec sleep 30"]'
+
+  run in_terminal $'\x1c'
+
+  [ "$status" -eq 131 ]
+  [[ "$output" == *"[sh] killed by signal 3"* ]]
+}
+
 @test "the runner reports a command it cannot start" {
   export PALETTE_RUN_ARGV='["definitely-not-a-real-binary"]'
 
