@@ -12,11 +12,13 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   check-compat:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       # actions/checkout@v7.0.1, pinned to its release commit.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

@@ -17,8 +17,10 @@ on:
 permissions:
   contents: read
 
+# GH_TOKEN is set only on the steps that run `gh`, not here: the build steps
+# run third-party build scripts and a container image, and none of them needs
+# a token that can write to this repo's releases.
 env:
-  GH_TOKEN: ${{ github.token }}
   GH_REPO: ${{ github.repository }}
 
 jobs:
@@ -54,6 +56,8 @@ jobs:
       # matches a prebuilt by version, not by commit, and fetches this marker
       # best-effort only to tell the user when their checkout is ahead of it.
       - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
             || gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes
@@ -138,6 +142,8 @@ jobs:
           cat "$asset.sha256"
 
       - name: Upload into the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber
 
   publish:
@@ -151,4 +157,6 @@ jobs:
       # installer's point of view: until this step, every asset URL 404s and
       # fetch-or-build.sh simply builds from source.
       - name: Undraft
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: gh release edit "$GITHUB_REF_NAME" --draft=false
