@@ -259,7 +259,7 @@ mod tests {
         let mut command = command(Placement::Split);
         command.cwd = Some("/".to_string());
         let mut origin = origin();
-        origin.cwd = "/usr".to_string();
+        origin.cwd = env!("CARGO_MANIFEST_DIR").to_string();
         let args = open_args(&command, "[]", &origin);
         assert!(args.windows(2).any(|w| w == ["--cwd", "/"]));
     }
@@ -267,9 +267,11 @@ mod tests {
     #[test]
     fn an_entry_without_a_cwd_runs_where_the_origin_pane_was() {
         let mut origin = origin();
-        origin.cwd = "/usr".to_string();
+        origin.cwd = env!("CARGO_MANIFEST_DIR").to_string();
         let args = open_args(&command(Placement::Split), "[]", &origin);
-        assert!(args.windows(2).any(|w| w == ["--cwd", "/usr"]));
+        assert!(args
+            .windows(2)
+            .any(|w| w == ["--cwd", env!("CARGO_MANIFEST_DIR")]));
     }
 
     #[test]

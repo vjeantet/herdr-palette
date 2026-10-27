@@ -521,10 +521,13 @@ mod tests {
             pane_id: "w1:p1".to_string(),
             tab_id: "w1:t1".to_string(),
             workspace_id: "w1".to_string(),
-            cwd: "/usr".to_string(),
+            cwd: env!("CARGO_MANIFEST_DIR").to_string(),
         };
         assert_eq!(run_cwd(&entry, &origin).as_deref(), Some("/"));
         entry.cwd = None;
-        assert_eq!(run_cwd(&entry, &origin).as_deref(), Some("/usr"));
+        assert_eq!(
+            run_cwd(&entry, &origin).as_deref(),
+            Some(env!("CARGO_MANIFEST_DIR"))
+        );
     }
 }
